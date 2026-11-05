@@ -19,6 +19,7 @@
     --ok:#34d399; --danger:#fb7185; --blue:#60a5fa; --amber:#f5b453;
   }
   * { box-sizing:border-box; }
+  [hidden] { display:none !important; }
   body { margin:0; font:14px/1.45 system-ui,"Segoe UI",sans-serif; background:var(--bg); color:var(--text);
     background-image:radial-gradient(900px 400px at 15% -10%, rgba(45,212,191,.08), transparent 60%); }
   button, input, select { font:inherit; color:inherit; }
@@ -54,6 +55,7 @@
   .hello h1 { margin:0; font-size:28px; font-weight:600; letter-spacing:-.02em; }
   .hello p { margin:4px 0 22px; color:var(--muted); }
   .hello p strong { color:var(--text); font-weight:500; }
+  .hello p strong.pos { color:var(--ok); } .hello p strong.neg { color:var(--danger); }
 
   /* Tarjetas de indicadores */
   .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin-bottom:14px; }
@@ -137,7 +139,44 @@
   .tipo .seg button { flex:1; padding:7px; font-size:13px; }
   .tipo .seg button.on[data-v=gasto] { color:var(--danger); }
   .tipo .seg button.on[data-v=ingreso] { color:var(--ok); }
-  .dlg-actions { grid-column:1 / -1; display:flex; justify-content:flex-end; gap:8px; margin-top:4px; }
+  .dlg-actions { grid-column:1 / -1; display:flex; justify-content:flex-end; flex-wrap:wrap; gap:8px; margin-top:4px; }
+  dialog input, dialog select { width:100%; min-width:0; }
+  dialog label { min-width:0; }
+  @media (max-width:520px) {
+    dialog form { grid-template-columns:1fr; padding:18px; }
+    .dlg-actions .btn { flex:1; justify-content:center; }
+    .dlg-actions .left { flex-basis:100%; order:3; }
+  }
+
+  /* Gastos fijos */
+  .mnav { display:flex; align-items:center; gap:4px; }
+  .mnav button { width:30px; height:30px; border-radius:8px; border:1px solid var(--line-2); background:var(--panel-2); cursor:pointer; color:var(--text); }
+  .mnav span { min-width:120px; text-align:center; font-weight:500; }
+  .progress { display:flex; align-items:center; gap:12px; margin:0 0 10px; font-size:13px; color:var(--muted); }
+  .progress .track { flex:1; height:6px; border-radius:99px; background:var(--panel-2); overflow:hidden; }
+  .progress .fill { height:100%; border-radius:99px; background:linear-gradient(90deg,#0f766e,var(--accent)); transition:width .5s cubic-bezier(.2,.8,.2,1); }
+  .fijos { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:0 18px; }
+  .fijos li { display:flex; align-items:center; gap:12px; padding:10px 6px; border-bottom:1px solid var(--line); border-radius:8px; cursor:pointer; }
+  .fijos li:hover { background:var(--panel-2); }
+  .check { flex:none; width:26px; height:26px; border-radius:50%; border:2px solid var(--line-2); background:none; display:grid; place-items:center;
+    cursor:pointer; color:transparent; transition:background .2s, border-color .2s, transform .15s; }
+  .check:hover { border-color:var(--accent); }
+  .check:active { transform:scale(.88); }
+  .check svg { width:14px; height:14px; }
+  .fijos li.paid .check { background:var(--ok); border-color:var(--ok); color:var(--accent-ink); }
+  .fijos li.paid .txt b { color:var(--muted); text-decoration:line-through; text-decoration-color:rgba(255,255,255,.25); }
+  .fijos .txt { flex:1; min-width:0; }
+  .fijos .txt b { display:block; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .fijos .txt span { color:var(--muted); font-size:12px; }
+  .fijos .right { text-align:right; flex:none; }
+  .fijos .amt { font-variant-numeric:tabular-nums; font-weight:500; }
+  .due { display:inline-block; margin-top:3px; padding:2px 8px; border-radius:99px; font-size:11px; color:var(--muted); background:var(--panel-2); }
+  .due.late { color:var(--danger); background:rgba(251,113,133,.12); }
+  .due.soon { color:var(--amber); background:rgba(245,180,83,.12); }
+  .due.ok { color:var(--ok); background:rgba(52,211,153,.12); }
+  .btn.sm { padding:6px 10px; font-size:13px; }
+  .btn.danger { color:var(--danger); }
+  .dlg-actions .left { margin-right:auto; }
 
   /* Entrada escalonada */
   .rise { opacity:0; animation:rise .6s cubic-bezier(.2,.8,.2,1) forwards; animation-delay:calc(var(--i, 0) * 70ms); }
@@ -180,6 +219,19 @@
       <div class="label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 15h2"/></svg>Balance total</div>
       <div class="value" id="tBal">$0</div><div class="foot" id="fBal"></div><svg class="spark" id="sBal"></svg>
     </div>
+  </section>
+
+  <section class="panel rise" style="--i:5;margin-bottom:14px">
+    <div class="panel-head">
+      <div><h2>Gastos fijos</h2><div class="sub">Tocá el círculo para marcarlo pagado, o la fila para ajustar la boleta</div></div>
+      <div class="mnav">
+        <button id="fijPrev" aria-label="Mes anterior">‹</button><span id="fijMesTxt"></span><button id="fijNext" aria-label="Mes siguiente">›</button>
+        <button class="btn sm" id="fijNew" style="margin-left:8px;width:auto">+ Fijo</button>
+      </div>
+    </div>
+    <p class="note err" id="fijAviso" hidden style="margin:0 0 10px">Para sincronizar los gastos fijos hay que publicar la versión nueva del script de Google. Mientras tanto quedan guardados solo en este dispositivo.</p>
+    <div class="progress" id="fijProg"><span id="fijProgTxt"></span><div class="track"><div class="fill" id="fijProgBar"></div></div></div>
+    <ul class="fijos" id="fijos"></ul>
   </section>
 
   <section class="grid">
@@ -252,6 +304,43 @@
     <div class="dlg-actions">
       <button type="button" class="btn" id="cancelBtn">Cancelar</button>
       <button type="submit" class="btn primary" id="submitBtn">Agregar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="fijoDlg">
+  <form id="fijoForm">
+    <h3 id="fijoTitle">Nuevo gasto fijo</h3>
+    <input type="hidden" id="fId">
+    <label class="full">Nombre <input type="text" id="fNombre" required placeholder="Ej: Luz, Alquiler, Internet"></label>
+    <label>Monto estimado <input type="number" id="fMonto" required min="0" step="0.01" placeholder="0"></label>
+    <label>Vence el día <input type="number" id="fDia" required min="1" max="31" placeholder="10"></label>
+    <label>Categoría <select id="fCatF"></select></label>
+    <label>Medio de pago
+      <select id="fMedio"><option>Débito</option><option>Crédito</option><option>Transferencia</option><option>Mercado Pago</option><option>Efectivo</option><option>Otro</option></select>
+    </label>
+    <label>Frecuencia
+      <select id="fFrec"><option value="1">Mensual</option><option value="2">Bimestral</option><option value="3">Trimestral</option><option value="6">Semestral</option><option value="12">Anual</option></select>
+    </label>
+    <label>Primer mes <input type="month" id="fDesde" required></label>
+    <div class="dlg-actions">
+      <button type="button" class="btn danger left" id="fDel">Eliminar</button>
+      <button type="button" class="btn" id="fCancel">Cancelar</button>
+      <button type="submit" class="btn primary">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="bolDlg">
+  <form id="bolForm">
+    <h3 id="bolTitle"></h3>
+    <p class="note" id="bolInfo"></p>
+    <label>Monto de esta boleta <input type="number" id="bMonto" required min="0" step="0.01"></label>
+    <label>Vence el <input type="date" id="bVenc" required></label>
+    <div class="dlg-actions">
+      <button type="button" class="btn left" id="bEdit">Editar fijo</button>
+      <button type="button" class="btn" id="bSave">Guardar</button>
+      <button type="submit" class="btn primary" id="bPay">Marcar pagado</button>
     </div>
   </form>
 </dialog>
@@ -390,6 +479,10 @@ function render() {
   const nMes = items.filter(i => i.fecha.startsWith(cur)).length;
   $('summary').innerHTML = `${fecha[0].toUpperCase() + fecha.slice(1)} · <strong>${nMes}</strong> movimiento${nMes === 1 ? '' : 's'} este mes · ` +
     (c.bal >= 0 ? `vas <strong class="pos">${money(c.bal)}</strong> arriba` : `vas <strong class="neg">${money(-c.bal)}</strong> abajo`);
+  const pend = fijos.filter(f => fijoAplica(f, cur) && !pagoDe(f, cur)), venc = pend.filter(f => diasHasta(fijoVence(f, cur)) < 0).length;
+  if (pend.length) $('summary').innerHTML += ` · <strong>${pend.length}</strong> fijo${pend.length === 1 ? '' : 's'} por pagar` +
+    (venc ? ` (<strong class="neg">${venc} vencido${venc === 1 ? '' : 's'}</strong>)` : '');
+  renderFijos();
 
   countUp($('tIng'), c.ing); countUp($('tGas'), c.gas); countUp($('tBalMes'), c.bal); countUp($('tBal'), total);
   foot($('fIng'), c.ing, p.ing, prev); foot($('fGas'), c.gas, p.gas, prev, true); foot($('fBalMes'), c.bal, p.bal, prev);
@@ -515,6 +608,152 @@ $('csvBtn').addEventListener('click', () => {
   URL.revokeObjectURL(a.href);
 });
 
+// Gastos fijos: plantillas que se repiten cada `frecuencia` meses desde `desde`.
+// El pago de un mes es un movimiento normal con { fijo, periodo }; `boletas[mes]`
+// guarda el monto y el vencimiento de la boleta de ese mes si difieren del estimado.
+const FIJOS_KEY = 'finanzas-fijos';
+const FRECS = { 1:'Mensual', 2:'Bimestral', 3:'Trimestral', 6:'Semestral', 12:'Anual' };
+let fijos = [], fijMes = today().slice(0,7), bolActual = null;
+try { fijos = JSON.parse(localStorage.getItem(FIJOS_KEY)) || []; } catch { fijos = []; }
+const saveFijos = () => { try { localStorage.setItem(FIJOS_KEY, JSON.stringify(fijos)); } catch {} };
+const nextMonth = k => { const [y, m] = k.split('-').map(Number); return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2,'0')}`; };
+const monthIdx = k => +k.slice(0,4) * 12 + +k.slice(5,7) - 1;
+const ddmm = f => f.slice(8,10) + '/' + f.slice(5,7);
+const fijoAplica = (f, mes) => { const d = monthIdx(mes) - monthIdx(f.desde); return d >= 0 && d % f.frecuencia === 0; };
+const boleta = (f, mes) => f.boletas?.[mes] || {};
+function fijoVence(f, mes) {
+  if (boleta(f, mes).venc) return boleta(f, mes).venc;
+  const last = new Date(+mes.slice(0,4), +mes.slice(5,7), 0).getDate();
+  return `${mes}-${String(Math.min(f.dia, last)).padStart(2,'0')}`;
+}
+const fijoMonto = (f, mes) => boleta(f, mes).monto || f.monto;
+const pagoDe = (f, mes) => items.find(i => i.fijo === f.id && i.periodo === mes);
+const diasHasta = fecha => {
+  const [y, m, d] = fecha.split('-').map(Number), t = new Date(); t.setHours(0,0,0,0);
+  return Math.round((new Date(y, m - 1, d) - t) / 864e5);
+};
+
+function renderFijos() {
+  $('fijMesTxt').textContent = monthName(fijMes);
+  const list = fijos.filter(f => fijoAplica(f, fijMes)).map(f => ({ f, pago: pagoDe(f, fijMes), venc: fijoVence(f, fijMes) }))
+    .sort((a, b) => (!!a.pago - !!b.pago) || a.venc.localeCompare(b.venc));
+  const pagados = list.filter(x => x.pago).length, falta = list.filter(x => !x.pago).reduce((s, x) => s + fijoMonto(x.f, fijMes), 0);
+  $('fijProg').hidden = !list.length;
+  $('fijProgTxt').innerHTML = `<strong style="color:var(--text)">${pagados} de ${list.length}</strong> pagados` + (falta ? ` · faltan ${money(falta)}` : ' · ¡todo pago! 🎉');
+  $('fijProgBar').style.width = (list.length ? pagados / list.length * 100 : 0) + '%';
+  $('fijos').innerHTML = list.map(({ f, pago, venc }) => {
+    let due;
+    if (pago) due = `<span class="due ok">Pagado ${ddmm(pago.fecha)}</span>`;
+    else {
+      const d = diasHasta(venc);
+      due = d < 0 ? `<span class="due late">Vencido hace ${-d} día${d === -1 ? '' : 's'}</span>`
+        : d === 0 ? '<span class="due soon">Vence hoy</span>'
+        : d <= 3 ? `<span class="due soon">Vence en ${d} día${d === 1 ? '' : 's'}</span>`
+        : `<span class="due">Vence ${ddmm(venc)}</span>`;
+    }
+    const estimado = !pago && !boleta(f, fijMes).monto;
+    return `<li class="${pago ? 'paid' : ''}" data-fijo="${f.id}">
+      <button class="check" data-pay="${f.id}" aria-label="${pago ? 'Desmarcar' : 'Marcar pagado'} ${esc(f.nombre)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>
+      <span class="txt"><b>${esc(f.nombre)}</b><span>${esc(f.categoria)}${f.frecuencia > 1 ? ' · ' + FRECS[f.frecuencia] : ''}</span></span>
+      <span class="right"><div class="amt" title="${estimado ? 'Monto estimado' : ''}">${estimado ? '≈ ' : ''}${money(pago ? pago.monto : fijoMonto(f, fijMes))}</div>${due}</span>
+    </li>`;
+  }).join('') || `<li class="empty" style="cursor:default;grid-column:1/-1">${fijos.length ? 'No hay gastos fijos para este mes.' : 'Cargá tus gastos fijos (alquiler, luz, internet…) con “+ Fijo”.'}</li>`;
+}
+
+function pagarFijo(f, mes, monto) {
+  const item = { id: crypto.randomUUID(), tipo:'gasto', fecha: today(), descripcion: f.nombre, categoria: f.categoria,
+    monto, medio: f.medio, fijo: f.id, periodo: mes };
+  items.push(item); save(); push({ action:'add', item });
+}
+function despagarFijo(f, mes) {
+  const pago = pagoDe(f, mes); if (!pago) return;
+  items = items.filter(i => i !== pago); save(); push({ action:'delete', id: pago.id });
+}
+
+$('fijos').addEventListener('click', e => {
+  const li = e.target.closest('li[data-fijo]'); if (!li) return;
+  const f = fijos.find(x => x.id === li.dataset.fijo); if (!f) return;
+  if (e.target.closest('.check')) {
+    const pago = pagoDe(f, fijMes);
+    if (pago) { if (!confirm(`¿Desmarcar "${f.nombre}"? Se borra el gasto de ${money(pago.monto)} que se registró.`)) return; despagarFijo(f, fijMes); }
+    else pagarFijo(f, fijMes, fijoMonto(f, fijMes));
+    return render();
+  }
+  openBoleta(f);
+});
+$('fijPrev').addEventListener('click', () => { fijMes = prevMonth(fijMes); renderFijos(); });
+$('fijNext').addEventListener('click', () => { fijMes = nextMonth(fijMes); renderFijos(); });
+
+// Diálogo del gasto fijo
+$('fCatF').innerHTML = CATS.gasto.map(c => `<option${c === 'Servicios' ? ' selected' : ''}>${c}</option>`).join('');
+function openFijo(f) {
+  $('fijoForm').reset();
+  $('fCatF').value = 'Servicios';
+  $('fId').value = f ? f.id : '';
+  if (f) {
+    $('fNombre').value = f.nombre; $('fMonto').value = f.monto; $('fDia').value = f.dia;
+    $('fCatF').value = f.categoria; $('fMedio').value = f.medio; $('fFrec').value = f.frecuencia; $('fDesde').value = f.desde;
+  } else $('fDesde').value = fijMes;
+  $('fijoTitle').textContent = f ? 'Editar gasto fijo' : 'Nuevo gasto fijo';
+  $('fDel').hidden = !f;
+  $('fijoDlg').showModal();
+  if (!f) $('fNombre').focus();
+}
+$('fijNew').addEventListener('click', () => openFijo());
+$('fCancel').addEventListener('click', () => $('fijoDlg').close());
+$('fijoForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const data = { nombre: $('fNombre').value.trim(), monto: parseFloat($('fMonto').value), categoria: $('fCatF').value,
+    medio: $('fMedio').value, dia: Math.min(31, Math.max(1, parseInt($('fDia').value) || 1)), frecuencia: +$('fFrec').value, desde: $('fDesde').value };
+  let f = fijos.find(x => x.id === $('fId').value);
+  if (f) Object.assign(f, data);
+  else fijos.push(f = { id: crypto.randomUUID(), ...data, boletas: {} });
+  saveFijos(); push({ tabla:'fijo', action: $('fId').value ? 'update' : 'add', item: f });
+  $('fijoDlg').close(); render();
+});
+$('fDel').addEventListener('click', () => {
+  const f = fijos.find(x => x.id === $('fId').value); if (!f) return;
+  if (!confirm(`¿Eliminar "${f.nombre}"? Los pagos ya registrados quedan en tus movimientos.`)) return;
+  fijos = fijos.filter(x => x !== f); saveFijos(); push({ tabla:'fijo', action:'delete', id: f.id });
+  $('fijoDlg').close(); render();
+});
+
+// Diálogo de la boleta del mes
+function openBoleta(f) {
+  bolActual = f;
+  const pago = pagoDe(f, fijMes);
+  $('bolTitle').textContent = `${f.nombre} · ${monthName(fijMes)}`;
+  $('bolInfo').innerHTML = pago ? `<span class="pos">Pagado el ${ddmm(pago.fecha)} por ${money(pago.monto)}.</span>`
+    : `Estimado ${money(f.monto)}, vence normalmente el día ${f.dia}. Cambiá el monto o la fecha si la boleta de este mes es distinta.`;
+  $('bMonto').value = pago ? pago.monto : fijoMonto(f, fijMes);
+  $('bVenc').value = fijoVence(f, fijMes);
+  $('bPay').textContent = pago ? 'Desmarcar pago' : 'Marcar pagado';
+  $('bPay').classList.toggle('primary', !pago);
+  $('bolDlg').showModal();
+}
+function guardarBoleta() {
+  const f = bolActual, monto = parseFloat($('bMonto').value), venc = $('bVenc').value, b = {};
+  if (monto && monto !== f.monto) b.monto = monto;
+  if (venc && venc !== fijoVence({ ...f, boletas: {} }, fijMes)) b.venc = venc;
+  f.boletas = { ...(f.boletas || {}) };
+  if (Object.keys(b).length) f.boletas[fijMes] = b; else delete f.boletas[fijMes];
+  saveFijos(); push({ tabla:'fijo', action:'update', item: f });
+  // Si ya estaba pagado y cambió el monto, se corrige también el gasto registrado
+  const pago = pagoDe(f, fijMes);
+  if (pago && monto && pago.monto !== monto) { pago.monto = monto; save(); push({ action:'update', item: pago }); }
+}
+$('bSave').addEventListener('click', () => { if (!$('bolForm').reportValidity()) return; guardarBoleta(); $('bolDlg').close(); render(); });
+$('bolForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const f = bolActual;
+  if (pagoDe(f, fijMes)) {
+    if (!confirm(`¿Desmarcar "${f.nombre}"? Se borra el gasto registrado.`)) return;
+    despagarFijo(f, fijMes);
+  } else { guardarBoleta(); pagarFijo(f, fijMes, parseFloat($('bMonto').value)); }
+  $('bolDlg').close(); render();
+});
+$('bEdit').addEventListener('click', () => { $('bolDlg').close(); openFijo(bolActual); });
+
 // Sincronización con Google Sheets (Apps Script). Los cambios van a una cola
 // que se reintenta, así se puede cargar sin conexión.
 const SYNC_KEY = 'finanzas-sync', QUEUE_KEY = 'finanzas-cola';
@@ -544,8 +783,13 @@ function flush() {
   })().finally(() => { flushing = null; });
   return flushing;
 }
+let backendFijos = null; // null = todavía no se sabe; false = script viejo sin "Fijos"
 function push(op) {
   if (!sync.url) return;
+  if (op.tabla === 'fijo' && !backendFijos) { // se suben todos juntos cuando el script se actualice
+    try { localStorage.setItem('finanzas-fijos-pend', '1'); } catch {}
+    return;
+  }
   queue.push(op); saveQueue(); setStatus('sync');
   flush().then(() => setStatus('ok'), () => setStatus('err'));
 }
@@ -556,7 +800,23 @@ async function pull() {
     await flush();
     const r = await api.get(sync);
     if (!r.ok) throw new Error(r.error);
-    if (!queue.length && JSON.stringify(r.items) !== JSON.stringify(items)) { items = r.items; save(); render(); }
+    if (!queue.length) {
+      let changed = false;
+      if (JSON.stringify(r.items) !== JSON.stringify(items)) { items = r.items; save(); changed = true; }
+      // r.fijos no viene si el script de Google es una versión vieja
+      backendFijos = Array.isArray(r.fijos);
+      $('fijAviso').hidden = backendFijos;
+      if (backendFijos) {
+        let pend = false; try { pend = !!localStorage.getItem('finanzas-fijos-pend'); } catch {}
+        if (pend && fijos.length) {
+          await api.post(sync, { tabla:'fijo', action:'bulkAdd', items: fijos });
+          r.fijos = [...r.fijos, ...fijos.filter(f => !r.fijos.some(x => x.id === f.id))];
+        }
+        try { localStorage.removeItem('finanzas-fijos-pend'); } catch {}
+        if (JSON.stringify(r.fijos) !== JSON.stringify(fijos)) { fijos = r.fijos; saveFijos(); changed = true; }
+      }
+      if (changed) render();
+    }
     setStatus('ok');
   } catch (err) {
     console.warn('Sincronización:', err); setStatus('err');
@@ -584,6 +844,7 @@ $('syncForm').addEventListener('submit', async e => {
     if (!r.ok) throw new Error(r.error === 'token' ? 'La clave no coincide con el TOKEN del script.' : r.error);
     // Sube lo que haya en este dispositivo (la planilla ignora los que ya tiene)
     if (items.length) { msg.textContent = `Subiendo ${items.length} movimientos…`; await api.post(cfg, { action:'bulkAdd', items }); }
+    if (fijos.length && r.fijos) await api.post(cfg, { tabla:'fijo', action:'bulkAdd', items: fijos });
     sync = cfg; queue = []; saveQueue();
     try { localStorage.setItem(SYNC_KEY, JSON.stringify(sync)); } catch {}
     msg.className = 'note ok'; msg.textContent = 'Conectado.';
