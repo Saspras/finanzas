@@ -1,0 +1,844 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mi Comida</title>
+<meta name="theme-color" content="#0b0f0a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Comida">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<style>
+  :root {
+    --bg:#0b0f0a; --panel:#121810; --panel-2:#192116; --line:rgba(255,255,255,.07); --line-2:rgba(255,255,255,.12);
+    --text:#ebf0e6; --muted:#8f9a88; --accent:#a3e635; --accent-ink:#172405;
+    --ok:#34d399; --warn:#fbbf24; --danger:#fb7185;
+  }
+  * { box-sizing:border-box; }
+  [hidden] { display:none !important; }
+  body { margin:0; font:15px/1.45 system-ui,"Segoe UI",sans-serif; background:var(--bg); color:var(--text);
+    background-image:radial-gradient(900px 400px at 15% -10%, rgba(163,230,53,.07), transparent 60%);
+    padding-bottom:calc(70px + env(safe-area-inset-bottom)); }
+  button, input, select, textarea { font:inherit; color:inherit; }
+
+  .top { position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:12px;
+    padding:calc(10px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 10px max(16px, env(safe-area-inset-left));
+    background:rgba(11,15,10,.8); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-bottom:1px solid var(--line); }
+  .logo { width:30px; height:30px; border-radius:9px; display:grid; place-items:center; background:linear-gradient(135deg,#a3e635,#15803d); font-size:17px; }
+  .brand { font-weight:600; font-size:15px; }
+  .spacer { flex:1; }
+  .sync { display:inline-flex; align-items:center; gap:7px; padding:6px 10px; border-radius:99px; border:1px solid var(--line-2);
+    background:none; color:var(--muted); font-size:12px; cursor:pointer; }
+  .sync .dot { width:7px; height:7px; border-radius:50%; background:var(--muted); }
+  .sync[data-s=ok] .dot { background:var(--ok); box-shadow:0 0 8px var(--ok); }
+  .sync[data-s=sync] .dot { background:var(--warn); animation:blink 1s infinite alternate; }
+  .sync[data-s=err] .dot { background:var(--danger); }
+  @keyframes blink { to { opacity:.3; } }
+  @media (max-width:520px) { #syncTxt { display:none; } }
+
+  /* Pestañas abajo (cómodas con el pulgar) */
+  .tabs { position:fixed; left:0; right:0; bottom:0; z-index:6; display:flex; justify-content:center;
+    padding:6px 8px calc(6px + env(safe-area-inset-bottom)); background:rgba(11,15,10,.92); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-top:1px solid var(--line); }
+  .tabs button { flex:1; max-width:140px; display:flex; flex-direction:column; align-items:center; gap:2px; padding:6px 4px; border:0; background:none;
+    color:var(--muted); font-size:11px; cursor:pointer; border-radius:10px; }
+  .tabs button span { font-size:20px; line-height:1; filter:grayscale(1); opacity:.7; }
+  .tabs button.on { color:var(--accent); }
+  .tabs button.on span { filter:none; opacity:1; }
+  .tabs .badge { position:relative; }
+  .tabs .badge b { position:absolute; top:-4px; right:-12px; min-width:16px; height:16px; padding:0 4px; border-radius:99px; background:var(--accent); color:var(--accent-ink); font-size:10px; line-height:16px; }
+
+  main { max-width:900px; margin:0 auto; padding:18px 16px 24px; }
+  .view { animation:rise .35s cubic-bezier(.2,.8,.2,1); }
+  @keyframes rise { from { opacity:0; transform:translateY(8px); } }
+  h1 { margin:0; font-size:24px; font-weight:600; letter-spacing:-.02em; }
+  .lead { margin:4px 0 16px; color:var(--muted); }
+  .lead strong { color:var(--text); font-weight:500; }
+
+  .btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:8px 14px; border-radius:10px; border:1px solid var(--line-2);
+    background:var(--panel-2); cursor:pointer; transition:background .15s, transform .15s; }
+  .btn:hover { background:#222c1d; }
+  .btn:active { transform:scale(.97); }
+  .btn.primary { background:var(--accent); color:var(--accent-ink); border-color:transparent; font-weight:600; box-shadow:0 6px 20px rgba(163,230,53,.18); }
+  .btn.primary:hover { background:#bef264; }
+  .btn.danger { color:var(--danger); }
+  .btn.sm { padding:6px 10px; font-size:13px; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .note { grid-column:1 / -1; margin:0; font-size:12px; color:var(--muted); }
+  .note.err { color:var(--danger); } .note.ok { color:var(--ok); }
+  .empty { text-align:center; color:var(--muted); padding:20px; }
+
+  .panel { background:var(--panel); border:1px solid var(--line-2); border-radius:14px; padding:14px; margin-bottom:12px; }
+  .panel h2 { margin:0 0 2px; font-size:15px; font-weight:600; }
+  .panel .sub { color:var(--muted); font-size:12px; }
+  .panel-head { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
+
+  .wnav { display:flex; align-items:center; gap:6px; }
+  .wnav button { height:32px; min-width:32px; border-radius:8px; border:1px solid var(--line-2); background:var(--panel-2); cursor:pointer; }
+  .wnav span { min-width:150px; text-align:center; font-weight:500; }
+
+  /* Semana */
+  .day { display:grid; grid-template-columns:54px 1fr 1fr; gap:8px; align-items:stretch; padding:8px 0; border-bottom:1px solid var(--line); }
+  .day:last-child { border-bottom:0; }
+  .day .dname { display:flex; flex-direction:column; justify-content:center; font-weight:600; }
+  .day .dname small { font-weight:400; color:var(--muted); font-size:12px; }
+  .day.hoy .dname { color:var(--accent); }
+  .slot { position:relative; min-width:0; padding:8px 10px; border-radius:10px; border:1px solid var(--line); background:var(--panel-2); cursor:pointer; text-align:left; }
+  .slot:hover { border-color:rgba(163,230,53,.35); }
+  .slot .k { display:block; font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
+  .slot .v { display:block; font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .slot.vacio .v { color:var(--muted); }
+  .slot .ses { position:absolute; top:6px; right:8px; font-size:10px; color:var(--muted); }
+  .prot { font-size:11px; color:var(--muted); grid-column:2 / -1; margin-top:-2px; }
+  @media (max-width:520px) { .day { grid-template-columns:44px 1fr 1fr; gap:6px; } .slot { padding:7px 8px; } .slot .v { font-size:13px; } }
+
+  .ses-card { padding:12px; border-radius:12px; background:var(--panel-2); border:1px solid var(--line); margin-top:8px; }
+  .ses-card h3 { margin:0 0 6px; font-size:14px; }
+  .ses-card ul { margin:0; padding-left:0; list-style:none; }
+  .ses-card li { padding:4px 0; display:flex; gap:8px; align-items:baseline; cursor:pointer; }
+  .ses-card li:hover b { color:var(--accent); }
+  .ses-card li small { color:var(--muted); }
+
+  /* Lista del súper */
+  .cat-h { margin:14px 0 4px; font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+  .items { list-style:none; margin:0; padding:0; }
+  .items li { display:flex; align-items:center; gap:12px; padding:9px 4px; border-bottom:1px solid var(--line); }
+  .items li:last-child { border-bottom:0; }
+  .tick { flex:none; width:28px; height:28px; border-radius:8px; border:2px solid var(--line-2); background:none; display:grid; place-items:center; cursor:pointer; color:transparent; }
+  .tick svg { width:15px; height:15px; }
+  .items li.done .tick { background:var(--ok); border-color:var(--ok); color:#04261a; }
+  .items li.done .nm { color:var(--muted); text-decoration:line-through; }
+  .items .nm { flex:1; min-width:0; }
+  .items .qty { color:var(--muted); font-size:13px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .items .x { background:none; border:0; color:var(--muted); cursor:pointer; padding:4px 6px; }
+  .tag { font-size:10px; padding:1px 6px; border-radius:99px; background:rgba(251,191,36,.12); color:var(--warn); margin-left:6px; }
+  .add { display:flex; gap:8px; margin-top:10px; }
+  .add input { flex:1; min-width:0; }
+  input[type=text], input[type=number], input[type=search], textarea, select { padding:9px 10px; border-radius:9px; border:1px solid var(--line-2); background:var(--bg); color-scheme:dark; }
+  details.tenes { margin-top:12px; color:var(--muted); font-size:13px; }
+  details.tenes summary { cursor:pointer; padding:4px 0; }
+
+  /* Despensa */
+  .pan li { gap:8px; }
+  .est { display:flex; flex:none; padding:2px; gap:2px; border-radius:9px; background:var(--bg); border:1px solid var(--line); }
+  .est button { border:0; background:none; padding:4px 8px; border-radius:7px; font-size:12px; color:var(--muted); cursor:pointer; }
+  .est button.on[data-e=hay] { background:rgba(52,211,153,.18); color:var(--ok); }
+  .est button.on[data-e=poco] { background:rgba(251,191,36,.18); color:var(--warn); }
+  .est button.on[data-e=no] { background:rgba(251,113,133,.16); color:var(--danger); }
+  .cat-row { display:flex; justify-content:space-between; align-items:center; }
+  .cat-row .link { background:none; border:0; color:var(--accent); font-size:12px; cursor:pointer; padding:4px; }
+
+  /* Recetas */
+  .recs { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:10px; }
+  .rec { padding:12px; border-radius:12px; background:var(--panel); border:1px solid var(--line-2); cursor:pointer; text-align:left; }
+  .rec:hover { border-color:rgba(163,230,53,.35); }
+  .rec .t { display:flex; gap:10px; align-items:center; }
+  .rec .ic { font-size:24px; }
+  .rec b { font-weight:500; }
+  .rec .meta { color:var(--muted); font-size:12px; margin-top:6px; }
+  .chip { display:inline-block; margin-top:8px; font-size:12px; padding:2px 8px; border-radius:99px; }
+  .chip.ok { background:rgba(52,211,153,.14); color:var(--ok); }
+  .chip.falta { background:rgba(251,191,36,.12); color:var(--warn); }
+  .toggle { display:inline-flex; align-items:center; gap:8px; font-size:13px; color:var(--muted); cursor:pointer; }
+
+  /* Diálogos */
+  dialog { width:min(520px, calc(100% - 24px)); max-height:calc(100% - 40px); padding:0; border:1px solid var(--line-2); border-radius:16px; background:var(--panel); color:var(--text);
+    box-shadow:0 30px 80px rgba(0,0,0,.5); }
+  dialog::backdrop { background:rgba(0,0,0,.55); backdrop-filter:blur(3px); }
+  dialog[open] { animation:rise .22s cubic-bezier(.2,.8,.2,1); }
+  dialog form, dialog .body { display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:18px; }
+  dialog h3 { grid-column:1 / -1; margin:0; font-size:17px; }
+  dialog label { display:flex; flex-direction:column; gap:5px; font-size:12px; color:var(--muted); min-width:0; }
+  dialog .full { grid-column:1 / -1; }
+  dialog input, dialog textarea { width:100%; min-width:0; }
+  dialog textarea { min-height:110px; resize:vertical; }
+  .dlg-actions { grid-column:1 / -1; display:flex; justify-content:flex-end; flex-wrap:wrap; gap:8px; margin-top:4px; }
+  .dlg-actions .left { margin-right:auto; }
+  @media (max-width:520px) { .dlg-actions .btn { flex:1; } .dlg-actions .left { flex-basis:100%; order:3; } }
+  .pick { grid-column:1 / -1; list-style:none; margin:0; padding:0; max-height:52vh; overflow:auto; }
+  .pick li { display:flex; align-items:center; gap:10px; padding:9px 6px; border-bottom:1px solid var(--line); cursor:pointer; border-radius:8px; }
+  .pick li:hover { background:var(--panel-2); }
+  .pick li .ic { font-size:20px; width:28px; text-align:center; }
+  .pick li .nm { flex:1; min-width:0; }
+  .pick li .nm small { display:block; color:var(--muted); font-size:12px; }
+  .pick li.sel { background:rgba(163,230,53,.08); }
+  .especiales { grid-column:1 / -1; display:flex; gap:6px; flex-wrap:wrap; }
+  .ing { grid-column:1 / -1; list-style:none; margin:0; padding:0; }
+  .ing li { display:flex; gap:8px; align-items:center; padding:5px 0; border-bottom:1px solid var(--line); font-size:14px; }
+  .ing .dot { width:8px; height:8px; border-radius:50%; background:var(--muted); flex:none; }
+  .ing .dot.hay { background:var(--ok); } .ing .dot.poco { background:var(--warn); } .ing .dot.no { background:var(--danger); }
+  .ing .q { margin-left:auto; color:var(--muted); font-size:13px; }
+  .pasos { grid-column:1 / -1; white-space:pre-wrap; margin:0; font-size:14px; line-height:1.55; }
+  .porc { display:flex; align-items:center; gap:8px; }
+  .porc button { width:30px; height:30px; border-radius:8px; border:1px solid var(--line-2); background:var(--panel-2); cursor:pointer; }
+
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration:.01ms !important; transition:none !important; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="logo">🥗</div>
+  <span class="brand">Mi Comida</span>
+  <span class="spacer"></span>
+  <button class="sync" id="syncBtn" data-s="local"><span class="dot"></span><span id="syncTxt">Solo en este dispositivo</span></button>
+</header>
+
+<main>
+  <!-- SEMANA -->
+  <section class="view" id="v-semana">
+    <h1>Menú de la semana</h1>
+    <p class="lead" id="semLead"></p>
+    <div class="panel">
+      <div class="panel-head">
+        <div class="wnav"><button id="wPrev" aria-label="Semana anterior">‹</button><span id="wTxt"></span><button id="wNext" aria-label="Semana siguiente">›</button></div>
+        <div class="row"><button class="btn sm" id="wClear">Vaciar</button><button class="btn sm primary" id="wAuto">✨ Armar semana</button></div>
+      </div>
+      <div id="dias"></div>
+    </div>
+    <div class="panel">
+      <h2>Qué cocinar</h2>
+      <div class="sub">Cocinás 2 veces por semana. Tocá una receta para ver ingredientes y pasos.</div>
+      <div id="sesiones"></div>
+    </div>
+  </section>
+
+  <!-- LISTA -->
+  <section class="view" id="v-lista" hidden>
+    <h1>Lista del súper</h1>
+    <p class="lead" id="listLead"></p>
+    <div class="panel">
+      <div class="row" style="justify-content:space-between">
+        <button class="btn primary" id="lGen">Generar desde el menú</button>
+        <div class="row"><button class="btn sm" id="lShare">Compartir</button><button class="btn sm" id="lClean">Borrar comprados</button></div>
+      </div>
+      <div id="lista"></div>
+      <form class="add" id="lAdd"><input type="text" id="lNew" placeholder="Agregar algo (ej: yerba)"><button class="btn">+</button></form>
+      <details class="tenes" id="tenesBox" hidden><summary id="tenesTxt"></summary><div id="tenes"></div></details>
+    </div>
+  </section>
+
+  <!-- DESPENSA -->
+  <section class="view" id="v-despensa" hidden>
+    <h1>Despensa</h1>
+    <p class="lead">Marcá qué tenés en casa. La lista del súper solo incluye lo que <strong>no</strong> marcaste como "Hay", y te sugiere recetas con lo que hay.</p>
+    <div class="panel">
+      <input type="search" id="dQ" placeholder="Buscar…" style="width:100%;margin-bottom:6px">
+      <div id="despensa"></div>
+      <form class="add" id="dAdd"><input type="text" id="dNew" placeholder="Agregar otra cosa"><button class="btn">+</button></form>
+    </div>
+  </section>
+
+  <!-- RECETAS -->
+  <section class="view" id="v-recetas" hidden>
+    <h1>Recetas</h1>
+    <p class="lead">Simples, rinden varias porciones y aguantan en la heladera. Los números son proteína por porción.</p>
+    <div class="row" style="justify-content:space-between;margin-bottom:12px">
+      <label class="toggle"><input type="checkbox" id="rYa"> Solo las que puedo hacer con lo que tengo</label>
+      <button class="btn sm primary" id="rNew">+ Receta</button>
+    </div>
+    <div class="recs" id="recetas"></div>
+  </section>
+</main>
+
+<nav class="tabs" id="tabs">
+  <button data-v="semana" class="on"><span>🗓️</span>Semana</button>
+  <button data-v="lista"><span class="badge">🛒<b id="badge" hidden></b></span>Súper</button>
+  <button data-v="despensa"><span>🥫</span>Despensa</button>
+  <button data-v="recetas"><span>📖</span>Recetas</button>
+</nav>
+
+<!-- Elegir comida para un día -->
+<dialog id="pickDlg">
+  <div class="body">
+    <h3 id="pickTitle"></h3>
+    <div class="especiales" id="pickEsp"></div>
+    <input type="search" id="pickQ" class="full" placeholder="Buscar receta…">
+    <ul class="pick" id="pickList"></ul>
+    <div class="dlg-actions"><button class="btn left" id="pickClear">Dejar vacío</button><button class="btn" id="pickCancel">Cancelar</button></div>
+  </div>
+</dialog>
+
+<!-- Ver receta -->
+<dialog id="recDlg">
+  <div class="body">
+    <h3 id="recTitle"></h3>
+    <p class="note full" id="recMeta"></p>
+    <div class="full porc"><span class="note" style="grid-column:auto">Porciones</span><button id="pMenos">−</button><b id="pN">4</b><button id="pMas">+</button></div>
+    <ul class="ing" id="recIng"></ul>
+    <p class="pasos" id="recPasos"></p>
+    <div class="dlg-actions">
+      <button class="btn danger left" id="recDel">Eliminar</button>
+      <button class="btn" id="recEdit">Editar</button>
+      <button class="btn primary" id="recClose">Cerrar</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Crear / editar receta -->
+<dialog id="formDlg">
+  <form id="recForm">
+    <h3 id="formTitle">Nueva receta</h3>
+    <input type="hidden" id="fId">
+    <label>Ícono <input type="text" id="fIcono" maxlength="4" placeholder="🍽️"></label>
+    <label>Nombre <input type="text" id="fNombre" required placeholder="Ej: Pollo al curry"></label>
+    <label>Porciones <input type="number" id="fPorc" min="1" value="4" required></label>
+    <label>Proteína por porción (g) <input type="number" id="fProt" min="0" placeholder="35"></label>
+    <label>Tiempo (min) <input type="number" id="fTiempo" min="0" placeholder="40"></label>
+    <span></span>
+    <label class="full">Ingredientes (uno por línea: cantidad, unidad y nombre)
+      <textarea id="fIng" placeholder="500 g Carne picada&#10;2 u Cebolla&#10;1 u Puré de tomate&#10;Sal"></textarea></label>
+    <label class="full">Pasos <textarea id="fPasos" placeholder="1. …"></textarea></label>
+    <div class="dlg-actions"><button type="button" class="btn" id="fCancel">Cancelar</button><button class="btn primary">Guardar</button></div>
+  </form>
+</dialog>
+
+<dialog id="syncDlg">
+  <form id="syncForm">
+    <h3>Sincronizar con Google Sheets</h3>
+    <p class="note">Es la <strong>misma URL y la misma clave</strong> que usás en Finanzas y Hábitos.</p>
+    <label class="full">URL de la aplicación web <input type="url" id="syncUrl" required placeholder="https://script.google.com/macros/s/…/exec"></label>
+    <label class="full">Clave <input type="password" id="syncToken" required autocomplete="off"></label>
+    <p class="note" id="syncMsg"></p>
+    <div class="dlg-actions">
+      <button type="button" class="btn" id="syncOff">Desconectar</button>
+      <button type="button" class="btn" id="syncCancel">Cerrar</button>
+      <button class="btn primary">Conectar</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm = s => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+const slug = s => norm(s).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const fmt = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const parse = f => new Date(+f.slice(0,4), +f.slice(5,7) - 1, +f.slice(8,10));
+const today = () => fmt(new Date());
+const addDays = (f, n) => { const d = parse(f); d.setDate(d.getDate() + n); return fmt(d); };
+const dow = f => parse(f).getDay();
+const lunesDe = f => addDays(f, -((dow(f) + 6) % 7));
+const ddmm = f => `${+f.slice(8)}/${+f.slice(5,7)}`;
+const DIAS = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+const CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+const CATS = ['Verdulería','Carnicería','Lácteos y huevos','Almacén','Congelados','Panadería','Limpieza','Otros'];
+
+// ---------- Catálogo base de la despensa ----------
+const BASE_DESPENSA = Object.entries({
+  'Verdulería': ['Papa','Batata','Cebolla','Zanahoria','Tomate','Lechuga','Morrón','Zapallito','Ajo','Limón','Banana','Manzana'],
+  'Carnicería': ['Pechuga de pollo','Pollo (cuartos)','Carne picada','Carne para guiso'],
+  'Lácteos y huevos': ['Huevos','Leche','Queso cremoso','Queso rallado','Yogur','Manteca','Jamón cocido'],
+  'Almacén': ['Arroz','Fideos','Lentejas','Pan rallado','Harina','Puré de tomate','Atún (lata)','Arvejas (lata)','Choclo (lata)',
+    'Aceite','Sal','Pimienta','Pimentón','Orégano','Caldo (cubos)','Salsa de soja','Tapas de tarta','Avena','Mayonesa','Yerba','Café','Azúcar'],
+  'Congelados': ['Verduras congeladas','Espinaca congelada'],
+  'Panadería': ['Pan','Pan de hamburguesa'],
+  'Limpieza': ['Detergente','Lavandina','Esponjas','Papel higiénico','Bolsas de residuo','Jabón en polvo'],
+}).flatMap(([categoria, l]) => l.map(nombre => ({ id: 'd-' + slug(nombre), nombre, categoria, base: true })));
+// Básicos que se usan en casi todo: no se suman cantidades
+const BASICOS = new Set(['Aceite','Sal','Pimienta','Pimentón','Orégano'].map(norm));
+
+// ---------- Recetas base (4 porciones salvo indicación) ----------
+const I = (cant, unidad, nombre) => ({ cant, unidad, nombre });
+const BASE_RECETAS = [
+  { id:'r-pollo-horno', icono:'🍗', nombre:'Pollo al horno con papas', porciones:4, proteina:40, tiempo:70,
+    ingredientes:[I(4,'u','Pollo (cuartos)'), I(1,'kg','Papa'), I(3,'u','Zanahoria'), I(2,'u','Cebolla'), I(0,'','Aceite'), I(0,'','Pimentón'), I(0,'','Sal')],
+    pasos:'1. Horno fuerte (220°).\n2. Papas, zanahorias y cebollas en trozos en una asadera con aceite, sal y pimentón.\n3. El pollo arriba, condimentado.\n4. 60–70 min; a mitad de cocción, dar vuelta el pollo.\n5. Separá en táperes: 2 a la heladera, el resto al freezer.' },
+  { id:'r-bolognesa', icono:'🍝', nombre:'Fideos con boloñesa', porciones:4, proteina:35, tiempo:35,
+    ingredientes:[I(500,'g','Fideos'), I(500,'g','Carne picada'), I(1,'u','Puré de tomate'), I(1,'u','Cebolla'), I(1,'u','Zanahoria'), I(1,'u','Morrón'), I(2,'diente','Ajo'), I(0,'','Queso rallado'), I(0,'','Aceite'), I(0,'','Sal')],
+    pasos:'1. Picar cebolla, morrón, ajo y rallar la zanahoria. Rehogar 5 min con aceite.\n2. Sumar la carne y dorar.\n3. Agregar el puré de tomate, sal y orégano. 15 min a fuego bajo.\n4. Hervir los fideos al dente.\n5. La salsa se guarda aparte (dura 4 días o se congela).' },
+  { id:'r-albondigas', icono:'🧆', nombre:'Albóndigas con arroz', porciones:4, proteina:38, tiempo:45,
+    ingredientes:[I(750,'g','Carne picada'), I(1,'u','Huevos'), I(100,'g','Pan rallado'), I(1,'u','Puré de tomate'), I(1,'u','Cebolla'), I(300,'g','Arroz'), I(1,'diente','Ajo'), I(0,'','Sal'), I(0,'','Aceite')],
+    pasos:'1. Mezclar carne, huevo, pan rallado, ajo picado y sal. Formar bolitas.\n2. Dorarlas en una olla con aceite.\n3. Agregar cebolla picada y el puré de tomate con medio vaso de agua. 20 min tapado.\n4. Hacer el arroz aparte.' },
+  { id:'r-lentejas', icono:'🍲', nombre:'Guiso de lentejas', porciones:5, proteina:40, tiempo:60,
+    ingredientes:[I(400,'g','Lentejas'), I(500,'g','Carne para guiso'), I(2,'u','Papa'), I(2,'u','Zanahoria'), I(1,'u','Cebolla'), I(1,'u','Morrón'), I(1,'u','Puré de tomate'), I(1,'u','Caldo (cubos)'), I(0,'','Pimentón'), I(0,'','Aceite')],
+    pasos:'1. Dorar la carne en cubos con aceite.\n2. Sumar cebolla y morrón picados; rehogar.\n3. Agregar lentejas (lavadas), papas y zanahorias en cubos, puré, caldo, pimentón y agua hasta cubrir.\n4. 40 min a fuego bajo, revolviendo de vez en cuando.\n5. Se congela perfecto: ideal para la cena del viernes.' },
+  { id:'r-arroz-pollo', icono:'🍛', nombre:'Arroz con pollo', porciones:4, proteina:42, tiempo:45,
+    ingredientes:[I(800,'g','Pechuga de pollo'), I(400,'g','Arroz'), I(1,'u','Cebolla'), I(1,'u','Morrón'), I(1,'u','Arvejas (lata)'), I(1,'u','Caldo (cubos)'), I(0,'','Pimentón'), I(0,'','Aceite')],
+    pasos:'1. Dorar el pollo en cubos y reservar.\n2. Rehogar cebolla y morrón.\n3. Sumar el arroz, el pimentón, el pollo y 2 tazas de caldo por taza de arroz.\n4. 18 min tapado a fuego bajo. Al final, las arvejas.' },
+  { id:'r-wok', icono:'🥡', nombre:'Wok de pollo y verduras', porciones:4, proteina:40, tiempo:25,
+    ingredientes:[I(700,'g','Pechuga de pollo'), I(1,'bolsa','Verduras congeladas'), I(300,'g','Arroz'), I(2,'diente','Ajo'), I(0,'','Salsa de soja'), I(0,'','Aceite')],
+    pasos:'1. Hacer el arroz.\n2. Pollo en tiras en sartén bien caliente con aceite, 5–6 min.\n3. Sumar ajo y las verduras congeladas, 5 min.\n4. Un chorro de salsa de soja y listo.' },
+  { id:'r-milanesas', icono:'🍗', nombre:'Milanesas de pollo al horno con puré', porciones:4, proteina:45, tiempo:50,
+    ingredientes:[I(1,'kg','Pechuga de pollo'), I(2,'u','Huevos'), I(200,'g','Pan rallado'), I(1,'kg','Papa'), I(100,'ml','Leche'), I(0,'','Manteca'), I(0,'','Sal')],
+    pasos:'1. Filetear las pechugas. Pasar por huevo batido con sal y luego por pan rallado.\n2. Horno a 200° en placa aceitada, 12 min por lado.\n3. Puré: papas hervidas, pisadas con leche, manteca y sal.\n4. Las milanesas crudas empanadas se pueden congelar.' },
+  { id:'r-tarta', icono:'🥧', nombre:'Tarta de espinaca y huevo', porciones:4, proteina:22, tiempo:50,
+    ingredientes:[I(1,'paquete','Tapas de tarta'), I(1,'bolsa','Espinaca congelada'), I(4,'u','Huevos'), I(1,'u','Cebolla'), I(200,'g','Queso cremoso'), I(50,'ml','Leche'), I(0,'','Sal')],
+    pasos:'1. Rehogar la cebolla y sumar la espinaca hasta que se seque.\n2. Mezclar con 3 huevos batidos, el queso en cubos, leche y sal.\n3. Rellenar la tapa, cubrir con la otra o hacer enrejado.\n4. Horno 200°, 35–40 min. Ideal para la vianda fría.' },
+  { id:'r-pastel-papas', icono:'🥔', nombre:'Pastel de papas', porciones:5, proteina:36, tiempo:60,
+    ingredientes:[I(600,'g','Carne picada'), I(1.2,'kg','Papa'), I(2,'u','Cebolla'), I(1,'u','Morrón'), I(2,'u','Huevos'), I(100,'ml','Leche'), I(0,'','Queso rallado'), I(0,'','Sal')],
+    pasos:'1. Puré con las papas, leche y sal.\n2. Relleno: cebolla y morrón rehogados + carne picada dorada, condimentada.\n3. En una fuente: mitad del puré, relleno, huevos duros picados, resto del puré.\n4. Queso rallado arriba y gratinar 20 min.' },
+  { id:'r-ensalada-atun', icono:'🥗', nombre:'Ensalada de arroz, atún y huevo', porciones:3, proteina:32, tiempo:25,
+    ingredientes:[I(250,'g','Arroz'), I(2,'u','Atún (lata)'), I(3,'u','Huevos'), I(2,'u','Tomate'), I(1,'u','Choclo (lata)'), I(1,'u','Zanahoria'), I(0,'','Mayonesa')],
+    pasos:'1. Arroz hervido y enfriado.\n2. Huevos duros (10 min).\n3. Mezclar todo: arroz, atún, huevo picado, tomate, choclo y zanahoria rallada.\n4. Vianda fría perfecta para el verano.' },
+  { id:'r-tortilla', icono:'🍳', nombre:'Tortilla de papa', porciones:3, proteina:20, tiempo:40,
+    ingredientes:[I(1,'kg','Papa'), I(6,'u','Huevos'), I(1,'u','Cebolla'), I(0,'','Aceite'), I(0,'','Sal')],
+    pasos:'1. Papas en láminas finas y cebolla, fritas a fuego medio en bastante aceite hasta que estén tiernas.\n2. Escurrir y mezclar con los huevos batidos y sal.\n3. A la sartén 5 min por lado (dar vuelta con un plato).\n4. Acompañar con ensalada para sumar verdura.' },
+  { id:'r-hamburguesas', icono:'🍔', nombre:'Hamburguesas caseras con ensalada', porciones:4, proteina:38, tiempo:25,
+    ingredientes:[I(800,'g','Carne picada'), I(1,'u','Huevos'), I(4,'u','Pan de hamburguesa'), I(1,'u','Lechuga'), I(2,'u','Tomate'), I(1,'diente','Ajo'), I(0,'','Sal')],
+    pasos:'1. Mezclar carne, huevo, ajo picado y sal. Formar 4–6 medallones.\n2. Plancha o sartén bien caliente, 4 min por lado.\n3. Se pueden congelar crudas, separadas con film.' },
+  { id:'r-fideos-atun', icono:'🐟', nombre:'Fideos con atún (rápido)', porciones:3, proteina:30, tiempo:15,
+    ingredientes:[I(300,'g','Fideos'), I(2,'u','Atún (lata)'), I(1,'u','Puré de tomate'), I(1,'u','Cebolla'), I(0,'','Aceite')],
+    pasos:'La cena de emergencia: mientras hierven los fideos, rehogar la cebolla, sumar el puré y el atún 5 min. Listo.' },
+  { id:'r-pechuga-verduras', icono:'🥩', nombre:'Pechugas a la plancha con verduras al horno', porciones:4, proteina:42, tiempo:45,
+    ingredientes:[I(800,'g','Pechuga de pollo'), I(2,'u','Batata'), I(2,'u','Zapallito'), I(1,'u','Cebolla'), I(1,'u','Morrón'), I(1,'u','Limón'), I(0,'','Aceite'), I(0,'','Sal')],
+    pasos:'1. Verduras en trozos al horno con aceite y sal, 35 min.\n2. Pechugas fileteadas a la plancha con sal y limón, 4 min por lado.\n3. Se guarda en táperes: pollo + verduras.' },
+];
+const ESPECIALES = { _afuera:'🍽️ Como afuera / invitado', _sobras:'♻️ Sobras', _libre:'🤷 Lo resuelvo en el día' };
+// Cocinás domingo (para lun–mié + cena del vie) y miércoles (para mié a la noche–sáb)
+const sesionDe = (f, slot) => {
+  const d = dow(f);
+  if (d === 1 || d === 2 || (d === 3 && slot === 'alm') || (d === 5 && slot === 'cena')) return 'dom';
+  if (d === 0) return 'dia';
+  return 'mie';
+};
+
+// ---------- Estado ----------
+const K = { r:'comida-recetas', m:'comida-menu', d:'comida-despensa', c:'comida-compra' };
+const load = k => { try { return JSON.parse(localStorage.getItem(k)) || []; } catch { return []; } };
+let recetasU = load(K.r), menu = load(K.m), despensaU = load(K.d), compra = load(K.c);
+const save = () => { try { localStorage.setItem(K.r, JSON.stringify(recetasU)); localStorage.setItem(K.m, JSON.stringify(menu));
+  localStorage.setItem(K.d, JSON.stringify(despensaU)); localStorage.setItem(K.c, JSON.stringify(compra)); } catch {} };
+
+// Recetas = base + las del usuario (que pueden pisar o "borrar" una base)
+function recetas() {
+  const byId = new Map(BASE_RECETAS.map(r => [r.id, { ...r, base: true }]));
+  recetasU.forEach(r => byId.set(r.id, { ...r, base: byId.has(r.id) }));
+  return [...byId.values()].filter(r => r.borrada !== '1');
+}
+const receta = id => recetas().find(r => r.id === id);
+// Despensa = catálogo base + estados guardados + cosas agregadas
+function despensa() {
+  const byId = new Map(BASE_DESPENSA.map(d => [d.id, { ...d, estado: '' }]));
+  despensaU.forEach(d => { const b = byId.get(d.id); byId.set(d.id, b ? { ...b, estado: d.estado } : { ...d }); });
+  return [...byId.values()];
+}
+const despensaPorNombre = () => new Map(despensa().map(d => [norm(d.nombre), d]));
+const estadoDe = (nombre, mapa = despensaPorNombre()) => mapa.get(norm(nombre))?.estado || '';
+const faltan = (r, mapa = despensaPorNombre()) => r.ingredientes.filter(i => !BASICOS.has(norm(i.nombre)) && estadoDe(i.nombre, mapa) !== 'hay');
+const menuDe = (f, slot) => menu.find(m => m.fecha === f && m.slot === slot)?.receta || '';
+
+// Cantidades
+const numTxt = n => (Math.round(n * 100) / 100).toLocaleString('es-AR');
+function cantTxt(cant, unidad) {
+  if (!cant) return '';
+  if (unidad === 'g' && cant >= 1000) return numTxt(cant / 1000) + ' kg';
+  if (unidad === 'ml' && cant >= 1000) return numTxt(cant / 1000) + ' l';
+  if (unidad === 'u' || !unidad) return numTxt(cant) + (unidad === 'u' ? ' u' : '');
+  return numTxt(cant) + ' ' + unidad + (cant > 1 && ['diente','bolsa','paquete','lata','taza'].includes(unidad) ? 's' : '');
+}
+const aG = (cant, unidad) => unidad === 'kg' ? [cant * 1000, 'g'] : unidad === 'l' ? [cant * 1000, 'ml'] : [cant, unidad];
+
+// ---------- Vista: semana ----------
+let semana = dow(today()) === 0 ? addDays(today(), 1) : lunesDe(today()); // el domingo ya se planifica la que viene
+let vista = 'semana';
+
+function protDia(f) {
+  return ['alm','cena'].reduce((s, sl) => s + (receta(menuDe(f, sl))?.proteina || 0), 0);
+}
+function renderSemana() {
+  const fin = addDays(semana, 6);
+  $('wTxt').textContent = `${ddmm(semana)} al ${ddmm(fin)}`;
+  const h0 = today(), dias = Array.from({ length:7 }, (_, i) => addDays(semana, i));
+  const llenos = dias.reduce((n, f) => n + ['alm','cena'].filter(s => menuDe(f, s)).length, 0);
+  $('semLead').innerHTML = llenos ? `<strong>${llenos} de 14</strong> comidas planificadas · cocinás domingo y miércoles`
+    : 'Tocá <strong>✨ Armar semana</strong> y elige recetas según lo que tenés en la despensa. Después cambiás lo que quieras.';
+  $('dias').innerHTML = dias.map(f => {
+    const p = protDia(f);
+    return `<div class="day ${f === h0 ? 'hoy' : ''}">
+      <div class="dname">${DIAS[dow(f)]}<small>${ddmm(f)}</small></div>
+      ${['alm','cena'].map(sl => {
+        const v = menuDe(f, sl), r = receta(v), s = sesionDe(f, sl);
+        const txt = r ? `${r.icono} ${esc(r.nombre)}` : ESPECIALES[v] || '+ elegir';
+        return `<button class="slot ${v ? '' : 'vacio'}" data-f="${f}" data-s="${sl}">
+          <span class="k">${sl === 'alm' ? 'Almuerzo' : 'Cena'}</span><span class="v">${txt}</span>
+          ${r && s !== 'dia' ? `<span class="ses" title="Se cocina el ${s === 'dom' ? 'domingo' : 'miércoles'}">${s === 'dom' ? 'D' : 'M'}</span>` : ''}
+        </button>`; }).join('')}
+      ${p ? `<div class="prot">≈ ${p} g de proteína en almuerzo + cena (sumá huevos o yogur al desayuno para llegar a 120–150 g)</div>` : ''}
+    </div>`;
+  }).join('');
+
+  // Sesiones de cocina
+  const ses = { dom: new Map(), mie: new Map(), dia: new Map() };
+  dias.forEach(f => ['alm','cena'].forEach(sl => {
+    const r = receta(menuDe(f, sl)); if (!r) return;
+    const m = ses[sesionDe(f, sl)]; m.set(r.id, (m.get(r.id) || 0) + 1);
+  }));
+  const bloque = (titulo, m) => m.size ? `<div class="ses-card"><h3>${titulo}</h3><ul>${[...m].map(([id, n]) => {
+    const r = receta(id);
+    return `<li data-rec="${id}" data-porc="${Math.max(n, r.porciones)}"><span>${r.icono}</span><b>${esc(r.nombre)}</b><small>${n} comida${n === 1 ? '' : 's'} · ${r.tiempo ? r.tiempo + ' min' : ''}</small></li>`;
+  }).join('')}</ul></div>` : '';
+  const domPrevio = addDays(semana, -1), mie = addDays(semana, 2);
+  $('sesiones').innerHTML = (bloque(`🍳 Domingo ${ddmm(domPrevio)} · para lunes a miércoles + cena del viernes`, ses.dom)
+    + bloque(`🍳 Miércoles ${ddmm(mie)} · para miércoles a la noche hasta el sábado`, ses.mie)
+    + bloque(`☀️ Domingo ${ddmm(fin)} · en el día`, ses.dia)) || '<div class="empty">Cuando elijas comidas, acá aparece qué cocinar cada día.</div>';
+}
+
+$('wPrev').addEventListener('click', () => { semana = addDays(semana, -7); render(); });
+$('wNext').addEventListener('click', () => { semana = addDays(semana, 7); render(); });
+$('dias').addEventListener('click', e => { const b = e.target.closest('.slot'); if (b) openPick(b.dataset.f, b.dataset.s); });
+$('sesiones').addEventListener('click', e => { const li = e.target.closest('[data-rec]'); if (li) openRec(li.dataset.rec, +li.dataset.porc); });
+
+function setMenu(f, slot, rec) {
+  const id = f + '_' + slot;
+  menu = menu.filter(m => m.id !== id);
+  if (rec) { const m = { id, fecha: f, slot, receta: rec }; menu.push(m); push({ tabla:'menu', action:'add', item: m }); }
+  else push({ tabla:'menu', action:'delete', id });
+}
+$('wClear').addEventListener('click', () => {
+  if (!confirm('¿Vaciar el menú de esta semana?')) return;
+  for (let i = 0; i < 7; i++) ['alm','cena'].forEach(sl => { if (menuDe(addDays(semana, i), sl)) setMenu(addDays(semana, i), sl, ''); });
+  save(); render();
+});
+
+// Arma la semana: 2 recetas por sesión, priorizando las que se pueden hacer con lo que hay
+$('wAuto').addEventListener('click', () => {
+  const mapa = despensaPorNombre(), usadasAntes = new Set(menu.filter(m => m.fecha >= addDays(semana, -7) && m.fecha < semana).map(m => m.receta));
+  const ranking = recetas().map(r => ({ r, score: faltan(r, mapa).length * 10 + (usadasAntes.has(r.id) ? 5 : 0) + Math.random() * 3 }))
+    .sort((a, b) => a.score - b.score).map(x => x.r);
+  const d = i => addDays(semana, i);
+  const grupos = [
+    [[d(0),'alm'],[d(0),'cena'],[d(1),'alm'],[d(1),'cena'],[d(2),'alm'],[d(4),'cena']],   // cocina del domingo
+    [[d(2),'cena'],[d(3),'alm'],[d(3),'cena'],[d(4),'alm'],[d(5),'alm'],[d(5),'cena']],   // cocina del miércoles
+  ];
+  const elegidas = ranking.slice(0, 4);
+  let n = 0;
+  grupos.forEach((slots, g) => {
+    const par = [elegidas[g * 2], elegidas[g * 2 + 1]];
+    slots.forEach(([f, sl], i) => { if (!menuDe(f, sl) && par[i % 2]) { setMenu(f, sl, par[i % 2].id); n++; } });
+  });
+  save(); render();
+  if (!n) alert('La semana ya está completa. Usá "Vaciar" si querés que la arme de nuevo.');
+});
+
+// Elegir comida
+let pickSlot = null;
+function openPick(f, slot) {
+  pickSlot = [f, slot];
+  $('pickTitle').textContent = `${DIAS[dow(f)]} ${ddmm(f)} · ${slot === 'alm' ? 'Almuerzo' : 'Cena'}`;
+  $('pickEsp').innerHTML = Object.entries(ESPECIALES).map(([k, v]) => `<button class="btn sm" data-esp="${k}">${v}</button>`).join('');
+  $('pickQ').value = '';
+  renderPick();
+  $('pickDlg').showModal();
+}
+function renderPick() {
+  const q = norm($('pickQ').value), mapa = despensaPorNombre(), actual = menuDe(...pickSlot);
+  const list = recetas().filter(r => !q || norm(r.nombre).includes(q))
+    .map(r => ({ r, f: faltan(r, mapa) })).sort((a, b) => a.f.length - b.f.length || a.r.nombre.localeCompare(b.r.nombre));
+  $('pickList').innerHTML = list.map(({ r, f }) => `<li data-pick="${r.id}" class="${r.id === actual ? 'sel' : ''}"><span class="ic">${r.icono}</span>
+    <span class="nm">${esc(r.nombre)}<small>${f.length ? `Falta: ${esc(f.slice(0, 3).map(i => i.nombre).join(', '))}${f.length > 3 ? '…' : ''}` : '✓ Tenés todo'} · ${r.proteina} g prot.</small></span></li>`).join('');
+}
+$('pickQ').addEventListener('input', renderPick);
+$('pickList').addEventListener('click', e => { const li = e.target.closest('[data-pick]'); if (!li) return; setMenu(...pickSlot, li.dataset.pick); save(); $('pickDlg').close(); render(); });
+$('pickEsp').addEventListener('click', e => { const b = e.target.closest('[data-esp]'); if (!b) return; setMenu(...pickSlot, b.dataset.esp); save(); $('pickDlg').close(); render(); });
+$('pickClear').addEventListener('click', () => { setMenu(...pickSlot, ''); save(); $('pickDlg').close(); render(); });
+$('pickCancel').addEventListener('click', () => $('pickDlg').close());
+
+// ---------- Vista: lista del súper ----------
+function catDe(nombre, mapa = despensaPorNombre()) { return mapa.get(norm(nombre))?.categoria || 'Otros'; }
+function addCompra(it) { compra.push(it); push({ tabla:'compra', action:'add', item: it }); }
+function delCompra(it) { compra = compra.filter(x => x !== it); push({ tabla:'compra', action:'delete', id: it.id }); }
+
+// Suma los ingredientes del menú de la semana (cocinando recetas enteras) y descuenta lo que hay
+let tenes = [];
+$('lGen').addEventListener('click', () => {
+  const mapa = despensaPorNombre(), porReceta = new Map();
+  for (let i = 0; i < 7; i++) ['alm','cena'].forEach(sl => {
+    const r = receta(menuDe(addDays(semana, i), sl)); if (r) porReceta.set(r.id, (porReceta.get(r.id) || 0) + 1);
+  });
+  if (!porReceta.size) { alert('Primero armá el menú de la semana (pestaña Semana).'); return; }
+  const total = new Map(); // nombre normalizado → { nombre, cant, unidad }
+  porReceta.forEach((n, id) => {
+    const r = receta(id), veces = Math.ceil(n / r.porciones); // cuántas tandas de la receta hacen falta
+    r.ingredientes.forEach(ing => {
+      const [cant, unidad] = aG(ing.cant * veces, ing.unidad), k = norm(ing.nombre) + '|' + unidad;
+      const t = total.get(k) || { nombre: ing.nombre, cant: 0, unidad };
+      t.cant += cant; total.set(k, t);
+    });
+  });
+  // Saca lo generado antes (lo ya comprado queda)
+  compra.filter(c => c.origen !== 'manual' && !c.hecho).forEach(delCompra);
+  const ya = new Set(compra.map(c => norm(c.nombre)));
+  tenes = [];
+  total.forEach(t => {
+    const est = estadoDe(t.nombre, mapa);
+    if (est === 'hay' || (BASICOS.has(norm(t.nombre)) && est !== 'no' && est !== 'poco')) { tenes.push(t); return; }
+    if (ya.has(norm(t.nombre))) return;
+    ya.add(norm(t.nombre));
+    addCompra({ id: crypto.randomUUID(), nombre: t.nombre, cant: BASICOS.has(norm(t.nombre)) ? 0 : t.cant, unidad: t.unidad,
+      categoria: catDe(t.nombre, mapa), hecho: '', origen: 'menu' });
+  });
+  // Lo que en la despensa está en "poco" o "no hay" también va, para reponer
+  despensa().filter(d => (d.estado === 'poco' || d.estado === 'no') && !ya.has(norm(d.nombre))).forEach(d => {
+    ya.add(norm(d.nombre));
+    addCompra({ id: crypto.randomUUID(), nombre: d.nombre, cant: 0, unidad: '', categoria: d.categoria, hecho: '', origen: 'reponer' });
+  });
+  save(); render();
+});
+
+function renderLista() {
+  const pend = compra.filter(c => !c.hecho).length;
+  $('listLead').innerHTML = compra.length ? `<strong>${pend}</strong> por comprar · ${compra.length - pend} en el changuito` : 'Generala desde el menú de la semana o agregá cosas a mano.';
+  const grupos = CATS.map(cat => [cat, compra.filter(c => (CATS.includes(c.categoria) ? c.categoria : 'Otros') === cat)
+    .sort((a, b) => (!!a.hecho - !!b.hecho) || a.nombre.localeCompare(b.nombre))]).filter(([, l]) => l.length);
+  $('lista').innerHTML = grupos.map(([cat, l]) => `<div class="cat-h">${cat}</div><ul class="items">${l.map(c => `
+    <li class="${c.hecho ? 'done' : ''}" data-c="${c.id}"><button class="tick" data-tick="${c.id}" aria-label="Marcar">${CHECK}</button>
+      <span class="nm">${esc(c.nombre)}${c.origen === 'reponer' ? '<span class="tag">reponer</span>' : ''}</span>
+      <span class="qty">${cantTxt(c.cant, c.unidad)}</span><button class="x" data-delc="${c.id}" aria-label="Quitar">✕</button></li>`).join('')}</ul>`).join('')
+    || '<div class="empty">La lista está vacía.</div>';
+  $('tenesBox').hidden = !tenes.length;
+  $('tenesTxt').textContent = `${tenes.length} cosas del menú que ya tenés en casa`;
+  $('tenes').textContent = tenes.map(t => t.nombre).join(' · ');
+  $('badge').hidden = !pend; $('badge').textContent = pend;
+}
+$('lista').addEventListener('click', e => {
+  const t = e.target.closest('[data-tick]'), d = e.target.closest('[data-delc]');
+  if (t) {
+    const c = compra.find(x => x.id === t.dataset.tick); if (!c) return;
+    c.hecho = c.hecho ? '' : '1'; push({ tabla:'compra', action:'update', item: c });
+    if (c.hecho) setEstado(despensa().find(x => norm(x.nombre) === norm(c.nombre)) || null, 'hay', c);
+    save(); render();
+  }
+  if (d) { const c = compra.find(x => x.id === d.dataset.delc); if (c) { delCompra(c); save(); render(); } }
+});
+$('lAdd').addEventListener('submit', e => {
+  e.preventDefault(); const n = $('lNew').value.trim(); if (!n) return;
+  addCompra({ id: crypto.randomUUID(), nombre: n, cant: 0, unidad: '', categoria: catDe(n), hecho: '', origen: 'manual' });
+  $('lNew').value = ''; save(); render();
+});
+$('lClean').addEventListener('click', () => { compra.filter(c => c.hecho).forEach(delCompra); save(); render(); });
+$('lShare').addEventListener('click', async () => {
+  const txt = '🛒 Lista del súper\n' + CATS.map(cat => {
+    const l = compra.filter(c => !c.hecho && (CATS.includes(c.categoria) ? c.categoria : 'Otros') === cat);
+    return l.length ? `\n${cat}\n` + l.map(c => `• ${c.nombre}${c.cant ? ' — ' + cantTxt(c.cant, c.unidad) : ''}`).join('\n') : '';
+  }).join('');
+  try { if (navigator.share) await navigator.share({ text: txt }); else { await navigator.clipboard.writeText(txt); alert('Lista copiada.'); } } catch {}
+});
+
+// ---------- Vista: despensa ----------
+function setEstado(d, estado, desdeCompra) {
+  if (!d) { // cosa nueva comprada que no estaba en la despensa
+    d = { id: 'u-' + slug(desdeCompra.nombre), nombre: desdeCompra.nombre, categoria: desdeCompra.categoria };
+  }
+  const row = { id: d.id, nombre: d.base ? '' : d.nombre, categoria: d.base ? '' : d.categoria, estado };
+  despensaU = despensaU.filter(x => x.id !== d.id); despensaU.push(row);
+  push({ tabla:'despensa', action:'add', item: row });
+}
+function renderDespensa() {
+  const q = norm($('dQ').value), all = despensa().filter(d => !q || norm(d.nombre).includes(q));
+  $('despensa').innerHTML = CATS.map(cat => {
+    const l = all.filter(d => (CATS.includes(d.categoria) ? d.categoria : 'Otros') === cat).sort((a, b) => a.nombre.localeCompare(b.nombre));
+    if (!l.length) return '';
+    return `<div class="cat-row cat-h"><span>${cat}</span><button class="link" data-all="${cat}">Todo "Hay"</button></div>
+      <ul class="items pan">${l.map(d => `<li><span class="nm">${esc(d.nombre)}</span><span class="est" data-d="${d.id}">
+        ${['hay','poco','no'].map(e => `<button data-e="${e}" class="${d.estado === e ? 'on' : ''}">${e === 'hay' ? 'Hay' : e === 'poco' ? 'Poco' : 'No'}</button>`).join('')}
+      </span></li>`).join('')}</ul>`;
+  }).join('') || '<div class="empty">Nada con ese nombre.</div>';
+}
+$('dQ').addEventListener('input', renderDespensa);
+$('despensa').addEventListener('click', e => {
+  const b = e.target.closest('.est button');
+  if (b) {
+    const d = despensa().find(x => x.id === b.closest('.est').dataset.d); if (!d) return;
+    setEstado(d, d.estado === b.dataset.e ? '' : b.dataset.e); save(); render(); return;
+  }
+  const all = e.target.closest('[data-all]');
+  if (all) { despensa().filter(d => (CATS.includes(d.categoria) ? d.categoria : 'Otros') === all.dataset.all && d.estado !== 'hay').forEach(d => setEstado(d, 'hay')); save(); render(); }
+});
+$('dAdd').addEventListener('submit', e => {
+  e.preventDefault(); const n = $('dNew').value.trim(); if (!n) return;
+  const cat = prompt(`¿En qué sección va "${n}"?\n${CATS.map((c, i) => `${i + 1}. ${c}`).join('\n')}`, '4');
+  const categoria = CATS[(parseInt(cat) || 8) - 1] || 'Otros';
+  setEstado({ id: 'u-' + slug(n), nombre: n, categoria }, 'hay');
+  $('dNew').value = ''; save(); render();
+});
+
+// ---------- Vista: recetas ----------
+function renderRecetas() {
+  const mapa = despensaPorNombre(), soloYa = $('rYa').checked;
+  const list = recetas().map(r => ({ r, f: faltan(r, mapa) })).filter(x => !soloYa || x.f.length === 0)
+    .sort((a, b) => a.f.length - b.f.length || a.r.nombre.localeCompare(b.r.nombre));
+  $('recetas').innerHTML = list.map(({ r, f }) => `<button class="rec" data-rec="${r.id}">
+    <div class="t"><span class="ic">${r.icono}</span><b>${esc(r.nombre)}</b></div>
+    <div class="meta">${r.porciones} porciones · ${r.proteina} g prot.${r.tiempo ? ' · ' + r.tiempo + ' min' : ''}</div>
+    ${f.length ? `<span class="chip falta">Faltan ${f.length}: ${esc(f.slice(0, 3).map(i => i.nombre.toLowerCase()).join(', '))}${f.length > 3 ? '…' : ''}</span>` : '<span class="chip ok">✓ Tenés todo</span>'}
+  </button>`).join('') || '<div class="empty" style="grid-column:1/-1">Con lo marcado en la despensa no alcanza para ninguna receta completa. Destildá el filtro para ver cuáles te quedan cerca.</div>';
+}
+$('rYa').addEventListener('change', renderRecetas);
+$('recetas').addEventListener('click', e => { const b = e.target.closest('[data-rec]'); if (b) openRec(b.dataset.rec); });
+
+let recAbierta = null, porcN = 4;
+function openRec(id, porc) {
+  const r = receta(id); if (!r) return;
+  recAbierta = r; porcN = porc || r.porciones;
+  $('recTitle').textContent = `${r.icono} ${r.nombre}`;
+  $('recMeta').textContent = `${r.proteina} g de proteína por porción${r.tiempo ? ' · ' + r.tiempo + ' min' : ''}`;
+  $('recPasos').textContent = r.pasos || '';
+  $('recDel').textContent = r.base && !recetasU.some(x => x.id === r.id) ? 'Ocultar' : 'Eliminar';
+  renderRecIng();
+  $('recDlg').showModal();
+}
+function renderRecIng() {
+  const r = recAbierta, mapa = despensaPorNombre(), k = porcN / r.porciones;
+  $('pN').textContent = porcN;
+  $('recIng').innerHTML = r.ingredientes.map(i => {
+    const e = estadoDe(i.nombre, mapa);
+    return `<li><span class="dot ${e}" title="${e === 'hay' ? 'Hay' : e === 'poco' ? 'Queda poco' : e === 'no' ? 'No hay' : 'Sin marcar'}"></span>${esc(i.nombre)}<span class="q">${cantTxt(...aG(i.cant * k, i.unidad))}</span></li>`;
+  }).join('');
+}
+$('pMenos').addEventListener('click', () => { if (porcN > 1) { porcN--; renderRecIng(); } });
+$('pMas').addEventListener('click', () => { porcN++; renderRecIng(); });
+$('recClose').addEventListener('click', () => $('recDlg').close());
+$('recEdit').addEventListener('click', () => { $('recDlg').close(); openForm(recAbierta); });
+$('recDel').addEventListener('click', () => {
+  const r = recAbierta;
+  if (!confirm(`¿${r.base ? 'Ocultar' : 'Eliminar'} "${r.nombre}"?`)) return;
+  recetasU = recetasU.filter(x => x.id !== r.id);
+  if (r.base) { const o = { id: r.id, nombre: r.nombre, borrada: '1', ingredientes: [] }; recetasU.push(o); push({ tabla:'receta', action:'add', item: o }); }
+  else push({ tabla:'receta', action:'delete', id: r.id });
+  save(); $('recDlg').close(); render();
+});
+
+// Formulario de receta. Ingredientes: "500 g Carne picada", "2 Cebolla", "Sal"
+const UNIDADES = { g:'g', gr:'g', kg:'kg', ml:'ml', l:'l', lt:'l', u:'u', un:'u', unidad:'u', unidades:'u', cda:'cda', cdas:'cda', cdita:'cdita',
+  taza:'taza', tazas:'taza', lata:'lata', latas:'lata', paquete:'paquete', paquetes:'paquete', diente:'diente', dientes:'diente', bolsa:'bolsa', bolsas:'bolsa' };
+function parseIng(linea) {
+  const m = linea.trim().match(/^([\d.,/]+)?\s*([a-záéíóú]+\.?)?\s+(?:de\s+)?(.+)$/i);
+  if (!m || (!m[1] && !UNIDADES[norm(m[2] || '')])) return { cant: 0, unidad: '', nombre: linea.trim() };
+  let cant = 0;
+  if (m[1]) cant = m[1].includes('/') ? m[1].split('/').reduce((a, b) => +a / +b) : parseFloat(m[1].replace(',', '.')) || 0;
+  const u = UNIDADES[norm((m[2] || '').replace('.', ''))];
+  return u ? { cant, unidad: u, nombre: m[3].trim() } : { cant, unidad: cant ? 'u' : '', nombre: ((m[2] || '') + ' ' + m[3]).trim() };
+}
+const ingLinea = i => (i.cant ? `${String(i.cant).replace('.', ',')} ${i.unidad || 'u'} ` : '') + i.nombre;
+function openForm(r) {
+  $('recForm').reset();
+  $('fId').value = r ? r.id : '';
+  $('fIcono').value = r ? r.icono : ''; $('fNombre').value = r ? r.nombre : '';
+  $('fPorc').value = r ? r.porciones : 4; $('fProt').value = r ? r.proteina || '' : ''; $('fTiempo').value = r ? r.tiempo || '' : '';
+  $('fIng').value = r ? r.ingredientes.map(ingLinea).join('\n') : ''; $('fPasos').value = r ? r.pasos : '';
+  $('formTitle').textContent = r ? 'Editar receta' : 'Nueva receta';
+  $('formDlg').showModal();
+}
+$('rNew').addEventListener('click', () => openForm());
+$('fCancel').addEventListener('click', () => $('formDlg').close());
+$('recForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const r = { id: $('fId').value || crypto.randomUUID(), icono: $('fIcono').value.trim() || '🍽️', nombre: $('fNombre').value.trim(),
+    porciones: Math.max(1, +$('fPorc').value || 4), proteina: +$('fProt').value || 0, tiempo: +$('fTiempo').value || 0,
+    ingredientes: $('fIng').value.split('\n').filter(l => l.trim()).map(parseIng).map(i => ({ ...i, nombre: i.nombre[0].toUpperCase() + i.nombre.slice(1) })),
+    pasos: $('fPasos').value.trim() };
+  recetasU = recetasU.filter(x => x.id !== r.id); recetasU.push(r);
+  push({ tabla:'receta', action:'add', item: r });
+  save(); $('formDlg').close(); render();
+});
+
+// ---------- Pestañas ----------
+function render() {
+  ['semana','lista','despensa','recetas'].forEach(v => $('v-' + v).hidden = v !== vista);
+  $('tabs').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === vista));
+  if (vista === 'semana') renderSemana();
+  if (vista === 'despensa') renderDespensa();
+  if (vista === 'recetas') renderRecetas();
+  renderLista(); // también actualiza el contador
+}
+$('tabs').addEventListener('click', e => {
+  const b = e.target.closest('[data-v]'); if (!b) return;
+  vista = b.dataset.v; scrollTo(0, 0); render();
+  try { localStorage.setItem('comida-vista', vista); } catch {}
+});
+try { const v = localStorage.getItem('comida-vista'); if (v && $('v-' + v)) vista = v; } catch {}
+if (new URLSearchParams(location.search).has('lista')) vista = 'lista';
+
+// ---------- Sincronización (mismo script y clave que Finanzas, ?app=comida) ----------
+const SYNC_KEY = 'comida-sync', QUEUE_KEY = 'comida-cola';
+let sync = {}, queue = [], flushing = null, retryT;
+try { sync = JSON.parse(localStorage.getItem(SYNC_KEY)) || {}; } catch {}
+try { queue = JSON.parse(localStorage.getItem(QUEUE_KEY)) || []; } catch {}
+const saveQueue = () => { try { localStorage.setItem(QUEUE_KEY, JSON.stringify(queue)); } catch {} };
+const api = {
+  get: cfg => fetch(`${cfg.url}?app=comida&token=${encodeURIComponent(cfg.token)}`).then(r => r.json()),
+  post: (cfg, body) => fetch(cfg.url, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+    body: JSON.stringify({ token: cfg.token, ...body }) }).then(r => r.json()),
+};
+function setStatus(st) {
+  const txt = { local:'Solo en este dispositivo', sync:'Sincronizando…', ok:'Sincronizado', err: queue.length ? `${queue.length} sin subir` : 'Sin conexión' };
+  $('syncBtn').dataset.s = st; $('syncTxt').textContent = txt[st]; $('syncBtn').title = txt[st];
+}
+function flush() {
+  flushing ||= (async () => {
+    while (queue.length) {
+      const r = await api.post(sync, queue[0]);
+      if (!r.ok) throw new Error(r.error);
+      queue.shift(); saveQueue();
+    }
+  })().finally(() => { flushing = null; });
+  return flushing;
+}
+function push(op) {
+  if (!sync.url) return;
+  queue.push(op); saveQueue(); setStatus('sync');
+  flush().then(() => setStatus('ok'), () => setStatus('err'));
+}
+async function pull() {
+  if (!sync.url) return setStatus('local');
+  setStatus('sync');
+  try {
+    await flush();
+    const r = await api.get(sync);
+    if (!r.ok) throw new Error(r.error);
+    if (!Array.isArray(r.recetas)) throw new Error('El script de Google es una versión vieja: publicá la nueva.');
+    if (!queue.length) {
+      const nuevo = [r.recetas, r.menu, r.despensa, r.compra], viejo = [recetasU, menu, despensaU, compra];
+      if (JSON.stringify(nuevo) !== JSON.stringify(viejo)) { [recetasU, menu, despensaU, compra] = nuevo; save(); render(); }
+    }
+    setStatus('ok');
+  } catch (err) {
+    console.warn('Sincronización:', err); setStatus('err');
+    clearTimeout(retryT); retryT = setTimeout(pull, 30000);
+  }
+}
+$('syncBtn').addEventListener('click', () => {
+  let otra = {}; try { otra = JSON.parse(localStorage.getItem('finanzas-sync')) || JSON.parse(localStorage.getItem('habitos-sync')) || {}; } catch {}
+  $('syncUrl').value = sync.url || otra.url || ''; $('syncToken').value = sync.token || otra.token || '';
+  $('syncMsg').textContent = ''; $('syncMsg').className = 'note';
+  $('syncOff').hidden = !sync.url;
+  $('syncDlg').showModal();
+});
+$('syncCancel').addEventListener('click', () => $('syncDlg').close());
+$('syncOff').addEventListener('click', () => {
+  sync = {}; queue = []; saveQueue();
+  try { localStorage.removeItem(SYNC_KEY); } catch {}
+  setStatus('local'); $('syncDlg').close();
+});
+$('syncForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const cfg = { url: $('syncUrl').value.trim(), token: $('syncToken').value.trim() }, msg = $('syncMsg');
+  msg.className = 'note'; msg.textContent = 'Probando conexión…';
+  try {
+    const r = await api.get(cfg);
+    if (!r.ok) throw new Error(r.error === 'token' ? 'La clave no coincide con el TOKEN del script.' : r.error);
+    if (!Array.isArray(r.recetas)) throw new Error('El script de Google es una versión vieja: publicá la nueva (ver GUIA.md).');
+    msg.textContent = 'Subiendo lo que tenías en este dispositivo…';
+    for (const [tabla, items] of [['receta', recetasU], ['menu', menu], ['despensa', despensaU], ['compra', compra]])
+      if (items.length) await api.post(cfg, { tabla, action:'bulkAdd', items });
+    sync = cfg; queue = []; saveQueue();
+    try { localStorage.setItem(SYNC_KEY, JSON.stringify(sync)); } catch {}
+    msg.className = 'note ok'; msg.textContent = 'Conectado.';
+    await pull();
+    setTimeout(() => $('syncDlg').close(), 700);
+  } catch (err) {
+    msg.className = 'note err';
+    msg.textContent = err instanceof TypeError ? 'No se pudo conectar. Revisá la URL y que el acceso sea "Cualquier usuario".' : String(err.message || err);
+  }
+});
+document.addEventListener('visibilitychange', () => { if (!document.hidden) pull(); });
+addEventListener('online', pull);
+
+render();
+pull();
+</script>
+</body>
+</html>
