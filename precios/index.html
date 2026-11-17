@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mis Precios</title>
+<meta name="theme-color" content="#0a0e14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Precios">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
+<style>
+  :root {
+    --bg:#0a0e14; --panel:#111823; --panel-2:#17202e; --line:rgba(255,255,255,.07); --line-2:rgba(255,255,255,.12);
+    --text:#e8eef6; --muted:#8a97a8; --accent:#38bdf8; --accent-ink:#03202e;
+    --ok:#34d399; --danger:#fb7185; --amber:#f5b453;
+  }
+  * { box-sizing:border-box; }
+  [hidden] { display:none !important; }
+  body { margin:0; min-height:100vh; font:15px/1.45 system-ui,"Segoe UI",sans-serif; background:var(--bg); color:var(--text);
+    background-image:radial-gradient(900px 400px at 15% -10%, rgba(56,189,248,.08), transparent 60%); }
+  button, input, select { font:inherit; color:inherit; }
+
+  .top { position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:12px;
+    padding:calc(10px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 10px max(16px, env(safe-area-inset-left));
+    background:rgba(10,14,20,.78); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-bottom:1px solid var(--line); }
+  .logo { width:30px; height:30px; border-radius:9px; display:grid; place-items:center; background:linear-gradient(135deg,#38bdf8,#2563eb); color:var(--accent-ink); }
+  .logo svg { width:17px; height:17px; }
+  .brand { font-weight:600; font-size:15px; }
+  .spacer { flex:1; }
+  .sync { display:inline-flex; align-items:center; gap:7px; padding:6px 10px; border-radius:99px; border:1px solid var(--line-2);
+    background:none; color:var(--muted); font-size:12px; cursor:pointer; }
+  .sync .dot { width:7px; height:7px; border-radius:50%; background:var(--muted); }
+  .sync[data-s=ok] .dot { background:var(--ok); box-shadow:0 0 8px var(--ok); }
+  .sync[data-s=sync] .dot { background:var(--accent); animation:blink 1s infinite alternate; }
+  .sync[data-s=err] .dot { background:var(--danger); }
+  @keyframes blink { to { opacity:.3; } }
+  @media (max-width:520px) { #syncTxt { display:none; } }
+  .btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:8px 14px; border-radius:10px; border:1px solid var(--line-2);
+    background:var(--panel-2); cursor:pointer; transition:background .15s, transform .15s; }
+  .btn:hover { background:#1e293a; }
+  .btn:active { transform:scale(.97); }
+  .btn.primary { background:var(--accent); color:var(--accent-ink); border-color:transparent; font-weight:600;
+    box-shadow:0 0 0 1px rgba(56,189,248,.3), 0 6px 20px rgba(56,189,248,.22); }
+  .btn.primary:hover { background:#7dd3fc; }
+  .btn.danger { color:var(--danger); }
+  .btn.sm { padding:6px 10px; font-size:13px; }
+  .btn svg { width:16px; height:16px; }
+  .note { grid-column:1 / -1; margin:0; font-size:12px; color:var(--muted); }
+  .note.err { color:var(--danger); } .note.ok { color:var(--ok); }
+
+  main { max-width:900px; margin:0 auto; padding:18px 16px 48px; }
+  .scan-big { width:100%; padding:18px; font-size:17px; border-radius:14px; margin-bottom:14px; }
+  .scan-big svg { width:22px; height:22px; }
+  .bar { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
+  .bar input, .bar select { padding:9px 11px; border-radius:10px; border:1px solid var(--line-2); background:var(--panel); color-scheme:dark; }
+  .bar input { flex:1; min-width:160px; }
+  .msg { padding:10px 12px; border-radius:10px; margin-bottom:12px; font-size:14px; background:var(--panel-2); border:1px solid var(--line-2); }
+  .msg.err { color:var(--danger); border-color:rgba(251,113,133,.3); }
+
+  .prods { list-style:none; margin:0; padding:0; background:var(--panel); border:1px solid var(--line-2); border-radius:14px; overflow:hidden; }
+  .prods li { display:flex; align-items:center; gap:12px; padding:12px 14px; border-bottom:1px solid var(--line); cursor:pointer; }
+  .prods li:last-child { border-bottom:0; }
+  .prods li:hover { background:var(--panel-2); }
+  .prods .txt { flex:1; min-width:0; }
+  .prods .txt b { display:block; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .prods .txt span { color:var(--muted); font-size:12px; }
+  .prods .right { flex:none; text-align:right; }
+  .prods .amt { font-weight:600; font-variant-numeric:tabular-nums; }
+  .tag { display:inline-block; margin-top:3px; padding:2px 7px; border-radius:99px; font-size:11px; background:var(--panel-2); color:var(--muted); }
+  .tag.up { color:var(--danger); background:rgba(251,113,133,.12); }
+  .tag.down { color:var(--ok); background:rgba(52,211,153,.12); }
+  .tag.best { color:var(--ok); background:rgba(52,211,153,.12); }
+  .bc { font-size:12px; color:var(--muted); }
+  .empty { text-align:center; color:var(--muted); padding:24px; }
+
+  dialog { width:min(500px, calc(100% - 24px)); max-height:calc(100% - 24px); padding:0; border:1px solid var(--line-2); border-radius:16px; background:var(--panel); color:var(--text);
+    box-shadow:0 30px 80px rgba(0,0,0,.5); }
+  dialog::backdrop { background:rgba(0,0,0,.55); backdrop-filter:blur(3px); }
+  dialog form, dialog .body { display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:20px; }
+  dialog h3 { grid-column:1 / -1; margin:0; font-size:17px; }
+  dialog .sub { grid-column:1 / -1; margin:-8px 0 0; color:var(--muted); font-size:12px; }
+  dialog label { display:flex; flex-direction:column; gap:5px; font-size:12px; color:var(--muted); min-width:0; }
+  dialog label.full, .full { grid-column:1 / -1; }
+  dialog input, dialog select { width:100%; min-width:0; padding:9px 10px; border-radius:9px; border:1px solid var(--line-2); background:var(--bg); color-scheme:dark; }
+  .dlg-actions { grid-column:1 / -1; display:flex; justify-content:flex-end; flex-wrap:wrap; gap:8px; margin-top:4px; }
+  .dlg-actions .left { margin-right:auto; }
+  @media (max-width:520px) { .dlg-actions .btn { flex:1; } .dlg-actions .left { flex-basis:100%; order:3; } }
+  .compare { grid-column:1 / -1; display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .compare div { padding:10px; border-radius:10px; background:var(--panel-2); border:1px solid var(--line); font-size:12px; color:var(--muted); }
+  .compare b { display:block; font-size:17px; color:var(--text); font-variant-numeric:tabular-nums; }
+  .diff { grid-column:1 / -1; font-size:13px; min-height:1em; }
+  .hist { grid-column:1 / -1; width:100%; border-collapse:collapse; font-size:13px; }
+  .hist th, .hist td { padding:7px 4px; border-bottom:1px solid var(--line); text-align:left; }
+  .hist th { color:var(--muted); font-weight:500; font-size:12px; }
+  .hist td.num, .hist th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .hist .x { background:none; border:0; color:var(--danger); cursor:pointer; padding:2px 6px; }
+  .pick { grid-column:1 / -1; padding:10px; border-radius:10px; background:var(--panel-2); border:1px dashed var(--line-2); }
+  .busy { grid-column:1 / -1; text-align:center; color:var(--muted); padding:20px; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 6v12M8 6v12M11 6v12M15 6v12M18 6v12M20 6v12"/></svg></div>
+  <span class="brand">Mis Precios</span>
+  <span class="spacer"></span>
+  <button class="sync" id="syncBtn" data-s="local" title="Sincronización"><span class="dot"></span><span id="syncTxt">Solo en este dispositivo</span></button>
+</header>
+
+<main>
+  <button class="btn primary scan-big" id="scanBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 8v8M10 8v8M14 8v8M17 8v8"/></svg>Escanear código de barras</button>
+  <input type="file" id="foto" accept="image/*" capture="environment" hidden>
+  <div class="msg" id="msg" hidden></div>
+
+  <div class="bar">
+    <input type="search" id="q" placeholder="Buscar producto o código…">
+    <select id="fRubro"><option value="">Todos</option></select>
+    <button class="btn" id="newBtn">+ Producto</button>
+  </div>
+  <ul class="prods" id="prods"></ul>
+</main>
+
+<!-- Producto: detalle con historial, o alta/edición -->
+<dialog id="prodDlg">
+  <form id="prodForm">
+    <h3 id="pTitle">Producto</h3>
+    <p class="sub" id="pSub"></p>
+    <input type="hidden" id="pId">
+    <div class="pick" id="pLink" hidden>
+      <label>¿Es uno que ya cargaste sin código?
+        <select id="pLinkSel"><option value="">No, es nuevo</option></select>
+      </label>
+    </div>
+    <label class="full">Nombre <input type="text" id="pNombre" required placeholder="Ej: Arroz Gallo Oro parboil"></label>
+    <label>Contenido <input type="text" id="pCont" placeholder="Ej: 1 kg, 500 g, 3 u"></label>
+    <label>Rubro <select id="pRubro"></select></label>
+    <label class="full">Código de barras <input type="text" id="pCodigo" inputmode="numeric" placeholder="(opcional)"></label>
+    <div class="dlg-actions">
+      <button type="button" class="btn danger left" id="pDel">Eliminar</button>
+      <button type="button" class="btn" id="pCancel">Cancelar</button>
+      <button type="submit" class="btn primary" id="pSave">Guardar y cargar precio</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="precioDlg">
+  <form id="precioForm">
+    <h3 id="prTitle"></h3>
+    <p class="sub" id="prSub"></p>
+    <input type="hidden" id="prProd">
+    <div class="compare" id="prCompare"></div>
+    <label>Precio <input type="number" id="prPrecio" required min="0.01" step="0.01" inputmode="decimal" placeholder="0"></label>
+    <label>Fecha <input type="date" id="prFecha" required></label>
+    <label class="full">Comercio <input type="text" id="prComercio" list="comercios" required placeholder="Ej: Vital, Día, Coto, chino"></label>
+    <datalist id="comercios"></datalist>
+    <label class="full">Nota (opcional) <input type="text" id="prNota" placeholder="Ej: en oferta, 2x1"></label>
+    <div class="diff" id="prDiff"></div>
+    <table class="hist" id="prHist"></table>
+    <div class="dlg-actions">
+      <button type="button" class="btn left" id="prEdit">Editar producto</button>
+      <button type="button" class="btn" id="prCancel">Cerrar</button>
+      <button type="submit" class="btn primary">Guardar precio</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="syncDlg">
+  <form id="syncForm">
+    <h3>Sincronizar con Google Sheets</h3>
+    <p class="note">Es la <strong>misma URL y la misma clave</strong> que usás en Finanzas.</p>
+    <label class="full">URL de la aplicación web <input type="url" id="syncUrl" required placeholder="https://script.google.com/macros/s/…/exec"></label>
+    <label class="full">Clave <input type="password" id="syncToken" required autocomplete="off"></label>
+    <p class="note" id="syncMsg"></p>
+    <div class="dlg-actions">
+      <button type="button" class="btn" id="syncOff">Desconectar</button>
+      <button type="button" class="btn" id="syncCancel">Cerrar</button>
+      <button type="submit" class="btn primary">Conectar</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money = n => n.toLocaleString('es-AR', { style:'currency', currency:'ARS', minimumFractionDigits:0, maximumFractionDigits:2 });
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+const ddmmyy = f => f.split('-').reverse().join('/').replace(/\/(\d{2})(\d{2})$/, '/$2');
+const RUBROS = ['Comida','Bebidas','Limpieza','Higiene','Otros'];
+RUBROS.forEach(r => { $('fRubro').add(new Option(r, r)); $('pRubro').add(new Option(r, r)); });
+
+const KEY_P = 'precios-productos', KEY_V = 'precios-precios';
+let productos = [], precios = [];
+try { productos = JSON.parse(localStorage.getItem(KEY_P)) || []; } catch {}
+try { precios = JSON.parse(localStorage.getItem(KEY_V)) || []; } catch {}
+const save = () => { try { localStorage.setItem(KEY_P, JSON.stringify(productos)); localStorage.setItem(KEY_V, JSON.stringify(precios)); } catch {} };
+
+// "500 g" → { base:'kg', f:0.5 }. Sirve para comparar paquetes de distinto tamaño.
+function medida(cont) {
+  const m = String(cont || '').toLowerCase().replace(',', '.').match(/(\d+(?:\.\d+)?)\s*(kg|g|gr|l|lt|ml|cc|u|un)\b/);
+  if (!m) return null;
+  const n = +m[1], u = m[2];
+  if (!n) return null;
+  if (u === 'kg') return { base:'kg', f:n };
+  if (u === 'g' || u === 'gr') return { base:'kg', f:n / 1000 };
+  if (u === 'l' || u === 'lt') return { base:'l', f:n };
+  if (u === 'ml' || u === 'cc') return { base:'l', f:n / 1000 };
+  return n > 1 ? { base:'u', f:n } : null;
+}
+const porBase = (p, precio) => { const m = medida(p.contenido); return m ? `${money(Math.round(precio / m.f))}/${m.base}` : ''; };
+const histDe = id => precios.filter(x => x.producto === id).sort((a, b) => b.fecha.localeCompare(a.fecha) || 0);
+const minDe = h => h.reduce((m, x) => !m || x.precio < m.precio ? x : m, null);
+const comercios = () => [...new Set(precios.map(x => x.comercio).filter(Boolean))].sort();
+
+function showMsg(t, err) { $('msg').hidden = !t; $('msg').textContent = t || ''; $('msg').className = 'msg' + (err ? ' err' : ''); }
+
+function render() {
+  const q = $('q').value.trim().toLowerCase(), r = $('fRubro').value;
+  const list = productos
+    .filter(p => (!r || p.rubro === r) && (!q || p.nombre.toLowerCase().includes(q) || (p.codigo || '').includes(q)))
+    .map(p => ({ p, h: histDe(p.id) }))
+    .sort((a, b) => (b.h[0]?.fecha || '').localeCompare(a.h[0]?.fecha || '') || a.p.nombre.localeCompare(b.p.nombre));
+  $('prods').innerHTML = list.map(({ p, h }) => {
+    const u = h[0], ant = h.find(x => x !== u && x.comercio === u?.comercio) || h[1], min = minDe(h);
+    let tag = '';
+    if (u && ant && ant.precio) {
+      const pct = Math.round((u.precio - ant.precio) / ant.precio * 100);
+      if (pct) tag = `<span class="tag ${pct > 0 ? 'up' : 'down'}">${pct > 0 ? '▲' : '▼'} ${Math.abs(pct)}%</span>`;
+    }
+    if (u && min && min !== u && min.precio < u.precio) tag += ` <span class="tag best">${money(min.precio)} en ${esc(min.comercio)}</span>`;
+    return `<li data-p="${p.id}">
+      <span class="txt"><b>${esc(p.nombre)}</b><span>${esc([p.contenido, u && `${u.comercio} · ${ddmmyy(u.fecha)}`, !p.codigo && 'sin código'].filter(Boolean).join(' · '))}</span></span>
+      <span class="right">${u ? `<div class="amt">${money(u.precio)}</div><div class="bc">${porBase(p, u.precio)}</div>` : '<div class="bc">sin precio</div>'}${tag ? '<div>' + tag + '</div>' : ''}</span>
+    </li>`;
+  }).join('') || `<li class="empty" style="cursor:default">${productos.length ? 'No hay productos con ese filtro.' : 'Escaneá un código de barras o cargá un producto con “+ Producto”.'}</li>`;
+  $('comercios').innerHTML = comercios().map(c => `<option value="${esc(c)}">`).join('');
+}
+$('q').addEventListener('input', render);
+$('fRubro').addEventListener('input', render);
+$('prods').addEventListener('click', e => { const li = e.target.closest('[data-p]'); if (li) openPrecio(productos.find(p => p.id === li.dataset.p)); });
+
+// --- Escaneo desde foto ---
+// Se prueba la foto en varios tamaños y rotaciones: las fotos del celu son enormes
+// y el código puede estar de costado.
+const FORMATS = () => [ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8, ZXing.BarcodeFormat.UPC_A, ZXing.BarcodeFormat.UPC_E, ZXing.BarcodeFormat.CODE_128];
+async function leerCodigo(file) {
+  const bmp = await createImageBitmap(file);
+  if ('BarcodeDetector' in window) { // nativo (Android/Chrome); en iPhone se usa ZXing
+    try {
+      const det = new BarcodeDetector({ formats:['ean_13','ean_8','upc_a','upc_e','code_128'] });
+      const r = await det.detect(bmp); if (r[0]) return r[0].rawValue;
+    } catch {}
+  }
+  if (!window.ZXing) throw new Error('No se pudo cargar el lector de códigos (¿sin internet?).');
+  const hints = new Map(); hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, FORMATS()); hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+  const reader = new ZXing.MultiFormatReader(); reader.setHints(hints);
+  for (const max of [1200, 800, 1800]) {
+    for (const rot of [0, 90]) {
+      const s = Math.min(1, max / Math.max(bmp.width, bmp.height)), w = Math.round(bmp.width * s), h = Math.round(bmp.height * s);
+      const c = document.createElement('canvas'); c.width = rot ? h : w; c.height = rot ? w : h;
+      const ctx = c.getContext('2d');
+      if (rot) { ctx.translate(h, 0); ctx.rotate(Math.PI / 2); }
+      ctx.drawImage(bmp, 0, 0, w, h);
+      try {
+        const bin = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(new ZXing.HTMLCanvasElementLuminanceSource(c)));
+        return reader.decode(bin).getText();
+      } catch { /* no encontró en este intento */ }
+    }
+  }
+  return null;
+}
+// Nombre del producto desde Open Food Facts (base pública; solo se manda el código)
+async function buscarOFF(codigo) {
+  try {
+    const ctl = new AbortController(); setTimeout(() => ctl.abort(), 6000);
+    const r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${codigo}.json?fields=product_name,product_name_es,brands,quantity`, { signal: ctl.signal });
+    const d = await r.json(); if (d.status !== 1 || !d.product) return null;
+    const p = d.product, base = (p.product_name_es || p.product_name || '').trim(), marca = (p.brands || '').split(',')[0].trim();
+    const nombre = marca && !base.toLowerCase().includes(marca.toLowerCase()) ? `${base} ${marca}`.trim() : base;
+    return nombre ? { nombre, contenido: p.quantity || '' } : null;
+  } catch { return null; }
+}
+$('scanBtn').addEventListener('click', () => { $('foto').value = ''; $('foto').click(); });
+$('foto').addEventListener('change', async () => {
+  const file = $('foto').files[0]; if (!file) return;
+  showMsg('Leyendo el código…');
+  let codigo = null;
+  try { codigo = await leerCodigo(file); } catch (e) { return showMsg(e.message, true); }
+  if (!codigo) {
+    codigo = prompt('No pude leer el código en la foto. Probá de nuevo más cerca y derecho, o escribí los números que están abajo de las barras:');
+    codigo = (codigo || '').replace(/\D/g, '');
+    if (!codigo) return showMsg('');
+  }
+  showMsg('');
+  conCodigo(codigo);
+});
+async function conCodigo(codigo) {
+  const p = productos.find(x => x.codigo === codigo);
+  if (p) return openPrecio(p);
+  showMsg(`Código ${codigo}: buscando el producto…`);
+  const off = await buscarOFF(codigo);
+  showMsg('');
+  openProd(null, { codigo, ...(off || {}) }, off ? 'Encontré este nombre en Open Food Facts: revisalo y completá lo que falte.' : 'Producto nuevo: no lo encontré en la base pública, escribí el nombre.');
+}
+
+// --- Diálogo de producto ---
+function openProd(p, preset, sub) {
+  $('prodForm').reset();
+  const v = p || preset || {};
+  $('pId').value = p ? p.id : '';
+  $('pNombre').value = v.nombre || ''; $('pCont').value = v.contenido || ''; $('pRubro').value = v.rubro || 'Comida'; $('pCodigo').value = v.codigo || '';
+  $('pTitle').textContent = p ? 'Editar producto' : 'Nuevo producto';
+  $('pSub').textContent = sub || ''; $('pSub').hidden = !sub;
+  $('pDel').hidden = !p;
+  $('pSave').textContent = p ? 'Guardar' : 'Guardar y cargar precio';
+  // Al escanear algo nuevo: ¿es un producto que ya estaba cargado sin código?
+  const sinCodigo = productos.filter(x => !x.codigo);
+  $('pLink').hidden = !!p || !v.codigo || !sinCodigo.length;
+  $('pLinkSel').innerHTML = '<option value="">No, es nuevo</option>' + sinCodigo.sort((a, b) => a.nombre.localeCompare(b.nombre)).map(x => `<option value="${x.id}">${esc(x.nombre)}</option>`).join('');
+  $('prodDlg').showModal();
+}
+$('newBtn').addEventListener('click', () => openProd());
+$('pCancel').addEventListener('click', () => $('prodDlg').close());
+$('pLinkSel').addEventListener('change', () => {
+  const x = productos.find(p => p.id === $('pLinkSel').value);
+  if (x) { $('pNombre').value = x.nombre; $('pCont').value = x.contenido; $('pRubro').value = x.rubro; }
+});
+$('prodForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const data = { nombre: $('pNombre').value.trim(), contenido: $('pCont').value.trim(), rubro: $('pRubro').value, codigo: $('pCodigo').value.replace(/\D/g, '') };
+  if (data.codigo) {
+    const otro = productos.find(x => x.codigo === data.codigo && x.id !== ($('pLinkSel').value || $('pId').value));
+    if (otro) { alert(`Ese código ya es de "${otro.nombre}".`); return; }
+  }
+  const editId = $('pId').value || (!$('pLink').hidden && $('pLinkSel').value) || '';
+  let p = productos.find(x => x.id === editId), nuevo = !p;
+  if (p) Object.assign(p, data); else productos.push(p = { id: crypto.randomUUID(), ...data });
+  save(); push({ tabla:'producto', action: nuevo ? 'add' : 'update', item: p });
+  $('prodDlg').close(); render();
+  if (!$('pId').value) openPrecio(p);
+});
+$('pDel').addEventListener('click', () => {
+  const p = productos.find(x => x.id === $('pId').value); if (!p) return;
+  const suyos = precios.filter(x => x.producto === p.id);
+  if (!confirm(`¿Eliminar "${p.nombre}"` + (suyos.length ? ` y sus ${suyos.length} precios?` : '?'))) return;
+  productos = productos.filter(x => x !== p); precios = precios.filter(x => x.producto !== p.id); save();
+  push({ tabla:'producto', action:'delete', id: p.id }); suyos.forEach(x => push({ tabla:'precio', action:'delete', id: x.id }));
+  $('prodDlg').close(); render();
+});
+
+// --- Diálogo de precio (con la comparación) ---
+let prActual = null;
+function openPrecio(p) {
+  prActual = p;
+  $('precioForm').reset();
+  $('prProd').value = p.id;
+  $('prTitle').textContent = p.nombre;
+  $('prSub').textContent = [p.contenido, p.rubro, p.codigo && 'Cód. ' + p.codigo].filter(Boolean).join(' · ');
+  $('prFecha').value = today();
+  const h = histDe(p.id);
+  $('prComercio').value = h[0]?.comercio || '';
+  renderPrecio();
+  $('precioDlg').showModal();
+  setTimeout(() => $('prPrecio').focus(), 50);
+}
+function renderPrecio() {
+  const p = prActual, h = histDe(p.id), u = h[0], min = minDe(h);
+  $('prCompare').innerHTML = h.length
+    ? `<div>Última vez<b>${money(u.precio)}</b>${esc(u.comercio)} · ${ddmmyy(u.fecha)}</div><div>Más barato<b>${money(min.precio)}</b>${esc(min.comercio)} · ${ddmmyy(min.fecha)}</div>`
+    : '<div class="full" style="grid-column:1/-1">Primera vez que registrás este producto.</div>';
+  $('prHist').innerHTML = h.length ? `<tr><th>Fecha</th><th>Comercio</th><th class="num">Precio</th><th class="num">${medida(p.contenido) ? 'Por ' + medida(p.contenido).base : ''}</th><th></th></tr>` +
+    h.map(x => `<tr><td>${ddmmyy(x.fecha)}</td><td>${esc(x.comercio)}${x.nota ? ' · ' + esc(x.nota) : ''}</td><td class="num">${money(x.precio)}</td><td class="num">${porBase(p, x.precio)}</td>
+      <td><button type="button" class="x" data-del="${x.id}" aria-label="Borrar">✕</button></td></tr>`).join('') : '';
+  diff();
+}
+function diff() {
+  const h = histDe(prActual.id), v = parseFloat($('prPrecio').value), el = $('prDiff');
+  if (!v || !h.length) { el.textContent = ''; return; }
+  const u = h[0], min = minDe(h), pct = Math.round((v - u.precio) / u.precio * 100);
+  let t = pct > 0 ? `<span class="neg" style="color:var(--danger)">▲ ${pct}% más caro</span> que la última vez` : pct < 0 ? `<span style="color:var(--ok)">▼ ${-pct}% más barato</span> que la última vez` : 'Igual que la última vez';
+  if (v > min.precio) t += ` · en ${esc(min.comercio)} estaba a ${money(min.precio)}`;
+  else if (h.length > 1 || v < min.precio) t += ' · <span style="color:var(--ok)">el mejor precio registrado</span>';
+  el.innerHTML = t;
+}
+$('prPrecio').addEventListener('input', diff);
+$('prCancel').addEventListener('click', () => $('precioDlg').close());
+$('prEdit').addEventListener('click', () => { $('precioDlg').close(); openProd(prActual); });
+$('prHist').addEventListener('click', e => {
+  const b = e.target.closest('[data-del]'); if (!b) return;
+  const x = precios.find(v => v.id === b.dataset.del); if (!x || !confirm(`¿Borrar el precio de ${money(x.precio)} del ${ddmmyy(x.fecha)}?`)) return;
+  precios = precios.filter(v => v !== x); save(); push({ tabla:'precio', action:'delete', id: x.id });
+  renderPrecio(); render();
+});
+$('precioForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const x = { id: crypto.randomUUID(), producto: prActual.id, fecha: $('prFecha').value, comercio: $('prComercio').value.trim(), precio: parseFloat($('prPrecio').value), nota: $('prNota').value.trim() };
+  precios.push(x); save(); push({ tabla:'precio', action:'add', item: x });
+  $('precioDlg').close(); render();
+  showMsg(`Guardado: ${prActual.nombre} a ${money(x.precio)} en ${x.comercio}.`);
+  setTimeout(() => showMsg(''), 4000);
+});
+
+// --- Sincronización (mismo script y clave que Finanzas, ?app=precios) ---
+const SYNC_KEY = 'precios-sync', QUEUE_KEY = 'precios-cola';
+let sync = {}, queue = [], flushing = null, retryT;
+try { sync = JSON.parse(localStorage.getItem(SYNC_KEY)) || {}; } catch {}
+try { queue = JSON.parse(localStorage.getItem(QUEUE_KEY)) || []; } catch {}
+const saveQueue = () => { try { localStorage.setItem(QUEUE_KEY, JSON.stringify(queue)); } catch {} };
+const api = {
+  get: cfg => fetch(`${cfg.url}?app=precios&token=${encodeURIComponent(cfg.token)}`).then(r => r.json()),
+  post: (cfg, body) => fetch(cfg.url, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+    body: JSON.stringify({ token: cfg.token, ...body }) }).then(r => r.json()),
+};
+function setStatus(st) {
+  const txt = { local:'Solo en este dispositivo', sync:'Sincronizando…', ok:'Sincronizado', err: queue.length ? `${queue.length} sin subir` : 'Sin conexión' };
+  $('syncBtn').dataset.s = st; $('syncTxt').textContent = txt[st]; $('syncBtn').title = txt[st];
+}
+function flush() {
+  flushing ||= (async () => {
+    while (queue.length) {
+      const r = await api.post(sync, queue[0]);
+      if (!r.ok) throw new Error(r.error);
+      queue.shift(); saveQueue();
+    }
+  })().finally(() => { flushing = null; });
+  return flushing;
+}
+function push(op) {
+  if (!sync.url) return;
+  queue.push(op); saveQueue(); setStatus('sync');
+  flush().then(() => setStatus('ok'), () => setStatus('err'));
+}
+async function pull() {
+  if (!sync.url) return setStatus('local');
+  setStatus('sync');
+  try {
+    await flush();
+    const r = await api.get(sync);
+    if (!r.ok) throw new Error(r.error);
+    if (!Array.isArray(r.productos)) throw new Error('El script de Google es una versión vieja: publicá la nueva.');
+    if (!queue.length && (JSON.stringify(r.productos) !== JSON.stringify(productos) || JSON.stringify(r.precios) !== JSON.stringify(precios))) {
+      productos = r.productos; precios = r.precios; save(); render();
+    }
+    setStatus('ok');
+  } catch (err) {
+    console.warn('Sincronización:', err); setStatus('err');
+    clearTimeout(retryT); retryT = setTimeout(pull, 30000);
+  }
+}
+$('syncBtn').addEventListener('click', () => {
+  let fin = {}; try { fin = JSON.parse(localStorage.getItem('finanzas-sync')) || {}; } catch {}
+  $('syncUrl').value = sync.url || fin.url || ''; $('syncToken').value = sync.token || fin.token || '';
+  $('syncMsg').textContent = ''; $('syncMsg').className = 'note';
+  $('syncOff').hidden = !sync.url;
+  $('syncDlg').showModal();
+});
+$('syncCancel').addEventListener('click', () => $('syncDlg').close());
+$('syncOff').addEventListener('click', () => {
+  sync = {}; queue = []; saveQueue();
+  try { localStorage.removeItem(SYNC_KEY); } catch {}
+  setStatus('local'); $('syncDlg').close();
+});
+$('syncForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const cfg = { url: $('syncUrl').value.trim(), token: $('syncToken').value.trim() }, msg = $('syncMsg');
+  msg.className = 'note'; msg.textContent = 'Probando conexión…';
+  try {
+    const r = await api.get(cfg);
+    if (!r.ok) throw new Error(r.error === 'token' ? 'La clave no coincide con el TOKEN del script.' : r.error);
+    if (!Array.isArray(r.productos)) throw new Error('El script de Google es una versión vieja: publicá la nueva (ver GUIA.md).');
+    if (productos.length) await api.post(cfg, { tabla:'producto', action:'bulkAdd', items: productos });
+    if (precios.length) await api.post(cfg, { tabla:'precio', action:'bulkAdd', items: precios });
+    sync = cfg; queue = []; saveQueue();
+    try { localStorage.setItem(SYNC_KEY, JSON.stringify(sync)); } catch {}
+    msg.className = 'note ok'; msg.textContent = 'Conectado.';
+    await pull();
+    setTimeout(() => $('syncDlg').close(), 700);
+  } catch (err) {
+    msg.className = 'note err';
+    msg.textContent = err instanceof TypeError ? 'No se pudo conectar. Revisá la URL y que el acceso sea "Cualquier usuario".' : String(err.message || err);
+  }
+});
+document.addEventListener('visibilitychange', () => { if (!document.hidden) pull(); });
+addEventListener('online', pull);
+
+render();
+pull();
+</script>
+</body>
+</html>
