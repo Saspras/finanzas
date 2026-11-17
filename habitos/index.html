@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mis Hábitos</title>
+<meta name="theme-color" content="#0f0d0a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Hábitos">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<style>
+  :root {
+    --bg:#0f0d0a; --panel:#17140f; --panel-2:#1f1b14; --line:rgba(255,255,255,.07); --line-2:rgba(255,255,255,.12);
+    --text:#f1ece4; --muted:#9a9184; --accent:#fbbf24; --accent-ink:#2a1a00;
+    --ok:#34d399; --danger:#fb7185; --fire:#fb923c;
+  }
+  * { box-sizing:border-box; }
+  [hidden] { display:none !important; }
+  body { margin:0; font:15px/1.45 system-ui,"Segoe UI",sans-serif; background:var(--bg); color:var(--text);
+    background-image:radial-gradient(900px 400px at 15% -10%, rgba(251,191,36,.08), transparent 60%); }
+  button, input, select { font:inherit; color:inherit; }
+
+  .top { position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:12px;
+    padding:calc(10px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 10px max(16px, env(safe-area-inset-left));
+    background:rgba(15,13,10,.78); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-bottom:1px solid var(--line); }
+  .logo { width:30px; height:30px; border-radius:9px; display:grid; place-items:center; background:linear-gradient(135deg,#fbbf24,#ea580c); color:var(--accent-ink); }
+  .logo svg { width:17px; height:17px; }
+  .brand { font-weight:600; font-size:15px; }
+  .spacer { flex:1; }
+  .sync { display:inline-flex; align-items:center; gap:7px; padding:6px 10px; border-radius:99px; border:1px solid var(--line-2);
+    background:none; color:var(--muted); font-size:12px; cursor:pointer; }
+  .sync .dot { width:7px; height:7px; border-radius:50%; background:var(--muted); }
+  .sync[data-s=ok] .dot { background:var(--ok); box-shadow:0 0 8px var(--ok); }
+  .sync[data-s=sync] .dot { background:var(--accent); animation:blink 1s infinite alternate; }
+  .sync[data-s=err] .dot { background:var(--danger); }
+  @keyframes blink { to { opacity:.3; } }
+  @media (max-width:520px) { #syncTxt, .btn .lbl { display:none; } }
+  .btn { display:inline-flex; align-items:center; gap:6px; padding:8px 14px; border-radius:10px; border:1px solid var(--line-2);
+    background:var(--panel-2); cursor:pointer; transition:background .15s, transform .15s; }
+  .btn:hover { background:#29231a; }
+  .btn:active { transform:scale(.97); }
+  .btn.primary { background:var(--accent); color:var(--accent-ink); border-color:transparent; font-weight:600;
+    box-shadow:0 0 0 1px rgba(251,191,36,.3), 0 6px 20px rgba(251,191,36,.22); }
+  .btn.primary:hover { background:#fcd34d; }
+  .btn.danger { color:var(--danger); }
+  .btn.sm { padding:6px 10px; font-size:13px; }
+  .btn svg { width:15px; height:15px; }
+  .note { grid-column:1 / -1; margin:0; font-size:12px; color:var(--muted); }
+  .note.err { color:var(--danger); } .note.ok { color:var(--ok); }
+
+  main { max-width:900px; margin:0 auto; padding:20px 16px 48px; }
+
+  /* Cabecera del día */
+  .hero { display:flex; align-items:center; gap:18px; margin-bottom:18px; }
+  .ring { flex:none; position:relative; width:96px; height:96px; }
+  .ring svg { width:100%; height:100%; transform:rotate(-90deg); }
+  .ring .bg { stroke:var(--panel-2); }
+  .ring .fg { stroke:url(#ringGrad); transition:stroke-dashoffset .6s cubic-bezier(.2,.8,.2,1); }
+  .ring .num { position:absolute; inset:0; display:grid; place-items:center; text-align:center; font-weight:600; font-size:22px; line-height:1.05; }
+  .ring .num small { display:block; font-size:11px; font-weight:400; color:var(--muted); }
+  .hero h1 { margin:0; font-size:26px; font-weight:600; letter-spacing:-.02em; }
+  .hero p { margin:4px 0 0; color:var(--muted); }
+  .hero p strong { color:var(--text); font-weight:500; }
+  .daynav { display:flex; align-items:center; gap:6px; margin-top:10px; }
+  .daynav button { height:30px; min-width:30px; padding:0 10px; border-radius:8px; border:1px solid var(--line-2); background:var(--panel-2); cursor:pointer; }
+  .daynav button:disabled { opacity:.35; cursor:default; }
+
+  .panel { background:var(--panel); border:1px solid var(--line-2); border-radius:14px; padding:16px; margin-bottom:14px; min-width:0; }
+  .panel-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:10px; flex-wrap:wrap; }
+  .panel h2 { margin:0; font-size:15px; font-weight:600; }
+  .panel .sub { color:var(--muted); font-size:12px; margin-top:2px; }
+  .empty { text-align:center; color:var(--muted); padding:20px; }
+
+  /* Lista de hoy */
+  .habs { list-style:none; margin:0; padding:0; }
+  .habs li { display:flex; align-items:center; gap:12px; padding:10px 6px; border-bottom:1px solid var(--line); border-radius:10px; }
+  .habs li:last-child { border-bottom:0; }
+  .check { flex:none; width:40px; height:40px; border-radius:50%; border:2px solid var(--line-2); background:none; display:grid; place-items:center;
+    cursor:pointer; color:transparent; transition:background .2s, border-color .2s, transform .15s; -webkit-tap-highlight-color:transparent; }
+  .check:hover { border-color:var(--accent); }
+  .check:active { transform:scale(.86); }
+  .check svg { width:20px; height:20px; }
+  .habs li.done .check { background:var(--ok); border-color:var(--ok); color:#04261a; animation:pop .35s cubic-bezier(.2,.8,.2,1); }
+  @keyframes pop { 50% { transform:scale(1.15); } }
+  .habs .ico { flex:none; width:34px; text-align:center; font-size:22px; }
+  .habs .txt { flex:1; min-width:0; cursor:pointer; }
+  .habs .txt b { display:block; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .habs li.done .txt b { color:var(--muted); text-decoration:line-through; text-decoration-color:rgba(255,255,255,.25); }
+  .habs .txt span { color:var(--muted); font-size:12px; }
+  .streak { flex:none; font-size:13px; font-weight:600; color:var(--fire); font-variant-numeric:tabular-nums; }
+  .streak.zero { color:var(--muted); font-weight:400; }
+  .otros { margin-top:8px; color:var(--muted); font-size:13px; }
+  .otros summary { cursor:pointer; padding:6px; }
+  .otros .habs li { opacity:.6; }
+  .party { text-align:center; padding:10px; color:var(--ok); font-weight:500; }
+
+  /* Semana */
+  .tablewrap { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { padding:7px 4px; border-bottom:1px solid var(--line); text-align:center; white-space:nowrap; }
+  th { color:var(--muted); font-weight:500; font-size:12px; }
+  th.today { color:var(--accent); }
+  td.name { text-align:left; max-width:180px; overflow:hidden; text-overflow:ellipsis; }
+  @media (max-width:520px) { td.name { max-width:96px; font-size:13px; } th, td { padding:7px 2px; } }
+  .cell { display:inline-block; width:22px; height:22px; border-radius:7px; line-height:22px; font-size:12px; }
+  .cell.si { background:var(--ok); color:#04261a; }
+  .cell.no { background:rgba(251,113,133,.14); color:var(--danger); }
+  .cell.pend { border:1.5px dashed var(--line-2); }
+  .cell.na { color:var(--line-2); }
+
+  /* Constancia */
+  .bar { display:grid; grid-template-columns:minmax(90px,170px) 1fr 44px; gap:10px; align-items:center; margin:9px 0; font-size:14px; }
+  .bar .n { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .bar .track { height:8px; border-radius:99px; background:var(--panel-2); overflow:hidden; }
+  .bar .fill { height:100%; border-radius:99px; background:linear-gradient(90deg,#ea580c,var(--accent)); transform-origin:left; animation:grow .9s cubic-bezier(.2,.8,.2,1) both; }
+  .bar .pct { text-align:right; font-variant-numeric:tabular-nums; color:var(--muted); }
+  @keyframes grow { from { transform:scaleX(0); } }
+
+  /* Diálogos */
+  dialog { width:min(480px, calc(100% - 32px)); padding:0; border:1px solid var(--line-2); border-radius:16px; background:var(--panel); color:var(--text);
+    box-shadow:0 30px 80px rgba(0,0,0,.5); }
+  dialog::backdrop { background:rgba(0,0,0,.55); backdrop-filter:blur(3px); }
+  dialog[open] { animation:rise .22s cubic-bezier(.2,.8,.2,1); }
+  dialog form { display:grid; grid-template-columns:90px 1fr; gap:12px; padding:20px; }
+  dialog h3 { grid-column:1 / -1; margin:0 0 4px; font-size:17px; }
+  dialog label { display:flex; flex-direction:column; gap:5px; font-size:12px; color:var(--muted); min-width:0; }
+  dialog label.full, .full { grid-column:1 / -1; }
+  dialog input { width:100%; min-width:0; padding:9px 10px; border-radius:9px; border:1px solid var(--line-2); background:var(--bg); color-scheme:dark; }
+  .days { display:flex; gap:6px; }
+  .days button { flex:1; height:38px; border-radius:9px; border:1px solid var(--line-2); background:var(--bg); cursor:pointer; font-weight:500; }
+  .days button.on { background:var(--accent); color:var(--accent-ink); border-color:transparent; }
+  .presets { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .presets button { padding:4px 10px; border-radius:99px; border:1px dashed var(--line-2); background:none; cursor:pointer; font-size:12px; color:var(--muted); }
+  .presets button:hover { color:var(--accent); border-color:var(--accent); }
+  .dlg-actions { grid-column:1 / -1; display:flex; justify-content:flex-end; flex-wrap:wrap; gap:8px; margin-top:4px; }
+  .dlg-actions .left { margin-right:auto; }
+  .order { display:flex; gap:6px; }
+  @media (max-width:520px) { .dlg-actions .btn { flex:1; justify-content:center; } .dlg-actions .left { flex-basis:100%; order:3; } }
+
+  .rise { opacity:0; animation:rise .6s cubic-bezier(.2,.8,.2,1) forwards; animation-delay:calc(var(--i, 0) * 70ms); }
+  @keyframes rise { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration:.01ms !important; animation-delay:0s !important; transition:none !important; }
+  }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+  <span class="brand">Mis Hábitos</span>
+  <span class="spacer"></span>
+  <button class="sync" id="syncBtn" data-s="local" title="Sincronización"><span class="dot"></span><span id="syncTxt">Solo en este dispositivo</span></button>
+  <button class="btn primary" id="newBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span class="lbl">Hábito</span></button>
+</header>
+
+<main>
+  <section class="hero rise">
+    <div class="ring">
+      <svg viewBox="0 0 100 100"><defs><linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbbf24"/><stop offset="1" stop-color="#ea580c"/></linearGradient></defs>
+        <circle class="bg" cx="50" cy="50" r="42" fill="none" stroke-width="10"/>
+        <circle class="fg" id="ringFg" cx="50" cy="50" r="42" fill="none" stroke-width="10" stroke-linecap="round" stroke-dasharray="263.9" stroke-dashoffset="263.9"/>
+      </svg>
+      <div class="num"><span id="ringTxt">0/0</span></div>
+    </div>
+    <div>
+      <h1 id="greet">Hola</h1>
+      <p id="summary"></p>
+      <div class="daynav"><button id="dPrev" aria-label="Día anterior">‹</button><button id="dHoy">Hoy</button><button id="dNext" aria-label="Día siguiente">›</button></div>
+    </div>
+  </section>
+
+  <section class="panel rise" style="--i:1">
+    <div class="panel-head"><div><h2 id="listTitle">Hoy</h2><div class="sub">Tocá el círculo para marcarlo · tocá el nombre para editarlo</div></div></div>
+    <ul class="habs" id="habs"></ul>
+    <div class="party" id="party" hidden>¡Día completo! 🎉</div>
+    <details class="otros" id="otrosBox" hidden><summary id="otrosTxt"></summary><ul class="habs" id="otros"></ul></details>
+  </section>
+
+  <section class="panel rise" style="--i:2">
+    <div class="panel-head"><div><h2>Últimos 7 días</h2></div></div>
+    <div class="tablewrap"><table><thead id="weekHead"></thead><tbody id="weekBody"></tbody></table></div>
+  </section>
+
+  <section class="panel rise" style="--i:3">
+    <div class="panel-head"><div><h2>Constancia</h2><div class="sub">Últimos 30 días: veces que lo hiciste sobre las que tocaba</div></div></div>
+    <div id="bars"></div>
+  </section>
+</main>
+
+<dialog id="habDlg">
+  <form id="habForm">
+    <h3 id="habTitle">Nuevo hábito</h3>
+    <input type="hidden" id="hId">
+    <label>Ícono <input type="text" id="hIcono" maxlength="4" placeholder="✅"></label>
+    <label>Nombre <input type="text" id="hNombre" required placeholder="Ej: Leer 20 minutos"></label>
+    <div class="full"><label>Qué días</label>
+      <div class="days" id="hDias" style="margin-top:5px"></div>
+      <div class="presets" id="hPresets"></div>
+    </div>
+    <p class="note err" id="hErr"></p>
+    <div class="dlg-actions">
+      <button type="button" class="btn danger left" id="hDel">Eliminar</button>
+      <span class="order" id="hOrder"><button type="button" class="btn sm" id="hUp" title="Subir">↑</button><button type="button" class="btn sm" id="hDown" title="Bajar">↓</button></span>
+      <button type="button" class="btn" id="hCancel">Cancelar</button>
+      <button type="submit" class="btn primary">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="syncDlg">
+  <form id="syncForm">
+    <h3>Sincronizar con Google Sheets</h3>
+    <p class="note">Es la <strong>misma URL y la misma clave</strong> que usás en la app de Finanzas.</p>
+    <label class="full">URL de la aplicación web <input type="url" id="syncUrl" required placeholder="https://script.google.com/macros/s/…/exec"></label>
+    <label class="full">Clave <input type="password" id="syncToken" required autocomplete="off"></label>
+    <p class="note" id="syncMsg"></p>
+    <div class="dlg-actions">
+      <button type="button" class="btn" id="syncOff">Desconectar</button>
+      <button type="button" class="btn" id="syncCancel">Cerrar</button>
+      <button type="submit" class="btn primary">Conectar</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const DIAS = ['D','L','M','M','J','V','S'];            // índice = getDay() (0 = domingo)
+const DIAS_LARGO = ['dom','lun','mar','mié','jue','vie','sáb'];
+const ORDEN_SEMANA = [1,2,3,4,5,6,0];                  // lunes primero
+const PRESETS = { 'Todos los días':[0,1,2,3,4,5,6], 'Lun a vie':[1,2,3,4,5], 'Lun a sáb':[1,2,3,4,5,6], 'Lun, mié, vie':[1,3,5], 'Mar, jue, sáb':[2,4,6] };
+// Hábitos sugeridos del plan (se cargan con un botón si la lista está vacía)
+const DEL_PLAN = [
+  { icono:'😴', nombre:'Anoche dormí antes de las 00', dias:[0,1,2,3,4,5,6] },
+  { icono:'🏋️', nombre:'Entrenar', dias:[1,3,5] },
+  { icono:'🐍', nombre:'Estudiar Python', dias:[2,4,6] },
+  { icono:'🍱', nombre:'Llevé vianda', dias:[1,2,3,4,5,6] },
+  { icono:'🧽', nombre:'Limpieza del día', dias:[2,4,6] },
+  { icono:'🧹', nombre:'10 min de orden', dias:[0,2,3,4,6] },
+  { icono:'🧴', nombre:'Crema', dias:[0,1,2,3,4,5,6] },
+  { icono:'📖', nombre:'Leer 20 min', dias:[0,1,2,3,4,5,6] },
+  { icono:'📵', nombre:'Celular lejos de la cama', dias:[0,1,2,3,4,5,6] },
+  { icono:'💰', nombre:'Pasar el cobro al ahorro', dias:[1,5] },
+];
+
+// Fechas en hora local como "aaaa-mm-dd"
+const fmt = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const parse = f => new Date(+f.slice(0,4), +f.slice(5,7) - 1, +f.slice(8,10));
+const today = () => fmt(new Date());
+const addDays = (f, n) => { const d = parse(f); d.setDate(d.getDate() + n); return fmt(d); };
+const dow = f => parse(f).getDay();
+
+const KEY_H = 'habitos-lista', KEY_R = 'habitos-registros';
+let habitos = [], registros = [];
+try { habitos = JSON.parse(localStorage.getItem(KEY_H)) || []; } catch {}
+try { registros = JSON.parse(localStorage.getItem(KEY_R)) || []; } catch {}
+const save = () => { try { localStorage.setItem(KEY_H, JSON.stringify(habitos)); localStorage.setItem(KEY_R, JSON.stringify(registros)); } catch {} };
+let hechos = new Set();
+const reindex = () => { hechos = new Set(registros.map(r => r.habito + '_' + r.fecha)); };
+reindex();
+const sorted = () => [...habitos].sort((a, b) => a.orden - b.orden);
+const toca = (h, f) => h.dias.includes(dow(f)) && (!h.desde || f >= h.desde);
+const hecho = (h, f) => hechos.has(h.id + '_' + f);
+let dia = today();
+
+function racha(h) {
+  const h0 = today();
+  let f = hecho(h, h0) ? h0 : addDays(h0, -1), n = 0;
+  for (let k = 0; k < 400; k++, f = addDays(f, -1)) {
+    if (h.desde && f < h.desde) break;
+    if (!toca(h, f)) continue;
+    if (!hecho(h, f)) break;
+    n++;
+  }
+  return n;
+}
+// Días seguidos con todo lo que tocaba hecho (hoy cuenta solo si ya está completo)
+function rachaPerfecta() {
+  const h0 = today(), completo = f => { const l = habitos.filter(h => toca(h, f)); return l.length && l.every(h => hecho(h, f)); };
+  let f = completo(h0) ? h0 : addDays(h0, -1), n = 0;
+  for (let k = 0; k < 400; k++, f = addDays(f, -1)) {
+    const l = habitos.filter(h => toca(h, f));
+    if (!l.length) { if (habitos.every(h => h.desde && f < h.desde)) break; continue; }
+    if (!l.every(h => hecho(h, f))) break;
+    n++;
+  }
+  return n;
+}
+const diasTxt = d => d.length === 7 ? 'Todos los días' : ORDEN_SEMANA.filter(x => d.includes(x)).map(x => DIAS_LARGO[x]).join(', ');
+const CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+
+function liHabito(h, f) {
+  const r = racha(h), ok = hecho(h, f);
+  return `<li class="${ok ? 'done' : ''}" data-h="${h.id}">
+    <button class="check" data-toggle="${h.id}" aria-label="${ok ? 'Desmarcar' : 'Marcar'} ${esc(h.nombre)}">${CHECK}</button>
+    <span class="ico">${esc(h.icono)}</span>
+    <span class="txt" data-edit="${h.id}"><b>${esc(h.nombre)}</b><span>${diasTxt(h.dias)}</span></span>
+    <span class="streak ${r ? '' : 'zero'}" title="Racha actual">${r ? '🔥 ' + r : '—'}</span>
+  </li>`;
+}
+
+function render() {
+  const h0 = today(), esHoy = dia === h0;
+  const hr = new Date().getHours();
+  $('greet').textContent = esHoy ? (hr < 12 ? 'Buenos días' : hr < 20 ? 'Buenas tardes' : 'Buenas noches')
+    : parse(dia).toLocaleDateString('es-AR', { weekday:'long', day:'numeric', month:'long' }).replace(/^./, c => c.toUpperCase());
+  const lista = sorted().filter(h => toca(h, dia)), otros = sorted().filter(h => !toca(h, dia));
+  const n = lista.filter(h => hecho(h, dia)).length;
+  const pf = rachaPerfecta();
+  $('summary').innerHTML = !habitos.length ? 'Todavía no cargaste hábitos.'
+    : (lista.length ? `<strong>${n} de ${lista.length}</strong> hechos ${esHoy ? 'hoy' : 'ese día'}` : 'Hoy no toca ningún hábito')
+      + (pf ? ` · <strong style="color:var(--fire)">🔥 ${pf}</strong> día${pf === 1 ? '' : 's'} perfecto${pf === 1 ? '' : 's'} seguidos` : '');
+  $('ringTxt').textContent = `${n}/${lista.length}`;
+  $('ringFg').style.strokeDashoffset = 263.9 * (1 - (lista.length ? n / lista.length : 0));
+  $('dNext').disabled = esHoy; $('dHoy').disabled = esHoy;
+  $('listTitle').textContent = esHoy ? 'Hoy' : (dia === addDays(h0, -1) ? 'Ayer' : parse(dia).toLocaleDateString('es-AR', { weekday:'long', day:'numeric' }));
+
+  $('habs').innerHTML = lista.map(h => liHabito(h, dia)).join('') || (habitos.length
+    ? '<li class="empty">Nada para este día 😌</li>'
+    : `<li class="empty" style="display:block">Empezá cargando los hábitos de tu plan (después los podés cambiar):<br><br>
+        <button class="btn primary" id="loadPlan">Cargar hábitos del plan</button> <button class="btn" id="newEmpty">Crear uno</button></li>`);
+  $('party').hidden = !(lista.length && n === lista.length);
+  $('otrosBox').hidden = !otros.length;
+  $('otrosTxt').textContent = `${otros.length} hábito${otros.length === 1 ? '' : 's'} que no toca${otros.length === 1 ? '' : 'n'} ${esHoy ? 'hoy' : 'ese día'}`;
+  $('otros').innerHTML = otros.map(h => liHabito(h, dia)).join('');
+
+  // Semana
+  const dias7 = Array.from({ length:7 }, (_, i) => addDays(h0, i - 6));
+  $('weekHead').innerHTML = `<tr><th></th>${dias7.map(f => `<th class="${f === h0 ? 'today' : ''}">${DIAS[dow(f)]}<br>${+f.slice(8)}</th>`).join('')}</tr>`;
+  $('weekBody').innerHTML = sorted().map(h => `<tr><td class="name">${esc(h.icono)} ${esc(h.nombre)}</td>${dias7.map(f => {
+    if (!toca(h, f)) return '<td><span class="cell na">·</span></td>';
+    if (hecho(h, f)) return '<td><span class="cell si">✓</span></td>';
+    return f === h0 ? '<td><span class="cell pend"></span></td>' : '<td><span class="cell no">✗</span></td>';
+  }).join('')}</tr>`).join('') || '<tr><td class="empty" colspan="8">Sin hábitos.</td></tr>';
+
+  // Constancia (30 días; hoy cuenta solo si ya está hecho)
+  $('bars').innerHTML = sorted().map((h, i) => {
+    let tocaN = 0, hechoN = 0;
+    for (let k = 0; k < 30; k++) {
+      const f = addDays(h0, -k);
+      if (!toca(h, f) || (f === h0 && !hecho(h, f))) continue;
+      tocaN++; if (hecho(h, f)) hechoN++;
+    }
+    const pct = tocaN ? Math.round(hechoN / tocaN * 100) : 0;
+    return `<div class="bar"><span class="n">${esc(h.icono)} ${esc(h.nombre)}</span>
+      <div class="track"><div class="fill" style="width:${pct}%;animation-delay:${i * 50}ms"></div></div>
+      <span class="pct">${tocaN ? pct + '%' : '—'}</span></div>`;
+  }).join('') || '<div class="empty">Sin datos todavía.</div>';
+}
+
+function toggle(id) {
+  const h = habitos.find(x => x.id === id); if (!h) return;
+  const rid = h.id + '_' + dia;
+  if (hecho(h, dia)) {
+    registros = registros.filter(r => r.id !== rid);
+    push({ tabla:'registro', action:'delete', id: rid });
+  } else {
+    const r = { id: rid, habito: h.id, fecha: dia };
+    registros.push(r);
+    push({ tabla:'registro', action:'add', item: r });
+    if (navigator.vibrate) navigator.vibrate(15);
+  }
+  reindex(); save(); render();
+}
+function onList(e) {
+  const t = e.target.closest('[data-toggle]'); if (t) return toggle(t.dataset.toggle);
+  const ed = e.target.closest('[data-edit]'); if (ed) return openHab(habitos.find(h => h.id === ed.dataset.edit));
+  if (e.target.closest('#loadPlan')) return cargarPlan();
+  if (e.target.closest('#newEmpty')) return openHab();
+}
+$('habs').addEventListener('click', onList);
+$('otros').addEventListener('click', onList);
+
+function cargarPlan() {
+  const h0 = today();
+  DEL_PLAN.forEach((p, i) => {
+    const h = { id: crypto.randomUUID(), ...p, orden: i, desde: h0 };
+    habitos.push(h); push({ tabla:'habito', action:'add', item: h });
+  });
+  save(); render();
+}
+
+$('dPrev').addEventListener('click', () => { dia = addDays(dia, -1); render(); });
+$('dNext').addEventListener('click', () => { if (dia < today()) { dia = addDays(dia, 1); render(); } });
+$('dHoy').addEventListener('click', () => { dia = today(); render(); });
+
+// Diálogo del hábito
+let diasSel = [];
+function renderDias() {
+  $('hDias').innerHTML = ORDEN_SEMANA.map(d => `<button type="button" data-d="${d}" class="${diasSel.includes(d) ? 'on' : ''}" aria-label="${DIAS_LARGO[d]}">${DIAS[d]}</button>`).join('');
+}
+$('hPresets').innerHTML = Object.keys(PRESETS).map(k => `<button type="button" data-p="${k}">${k}</button>`).join('');
+$('hDias').addEventListener('click', e => {
+  const b = e.target.closest('[data-d]'); if (!b) return;
+  const d = +b.dataset.d; diasSel = diasSel.includes(d) ? diasSel.filter(x => x !== d) : [...diasSel, d]; renderDias();
+});
+$('hPresets').addEventListener('click', e => { const b = e.target.closest('[data-p]'); if (b) { diasSel = [...PRESETS[b.dataset.p]]; renderDias(); } });
+function openHab(h) {
+  $('habForm').reset(); $('hErr').textContent = '';
+  $('hId').value = h ? h.id : '';
+  $('hIcono').value = h ? h.icono : ''; $('hNombre').value = h ? h.nombre : '';
+  diasSel = h ? [...h.dias] : [0,1,2,3,4,5,6]; renderDias();
+  $('habTitle').textContent = h ? 'Editar hábito' : 'Nuevo hábito';
+  $('hDel').hidden = !h; $('hOrder').hidden = !h;
+  $('habDlg').showModal();
+  if (!h) $('hNombre').focus();
+}
+$('newBtn').addEventListener('click', () => openHab());
+$('hCancel').addEventListener('click', () => $('habDlg').close());
+$('habForm').addEventListener('submit', e => {
+  e.preventDefault();
+  if (!diasSel.length) { $('hErr').textContent = 'Elegí al menos un día.'; return; }
+  const data = { nombre: $('hNombre').value.trim(), icono: $('hIcono').value.trim() || '✅', dias: [...diasSel].sort() };
+  let h = habitos.find(x => x.id === $('hId').value);
+  if (h) Object.assign(h, data);
+  else habitos.push(h = { id: crypto.randomUUID(), ...data, orden: habitos.reduce((m, x) => Math.max(m, x.orden + 1), 0), desde: today() });
+  save(); push({ tabla:'habito', action: $('hId').value ? 'update' : 'add', item: h });
+  $('habDlg').close(); render();
+});
+$('hDel').addEventListener('click', () => {
+  const h = habitos.find(x => x.id === $('hId').value); if (!h) return;
+  if (!confirm(`¿Eliminar "${h.nombre}"? Se pierde su historial.`)) return;
+  const suyos = registros.filter(r => r.habito === h.id);
+  habitos = habitos.filter(x => x !== h); registros = registros.filter(r => r.habito !== h.id);
+  reindex(); save();
+  push({ tabla:'habito', action:'delete', id: h.id });
+  suyos.forEach(r => push({ tabla:'registro', action:'delete', id: r.id }));
+  $('habDlg').close(); render();
+});
+function mover(delta) {
+  const list = sorted(), i = list.findIndex(x => x.id === $('hId').value), j = i + delta;
+  if (i < 0 || j < 0 || j >= list.length) return;
+  [list[i], list[j]] = [list[j], list[i]];
+  list.forEach((h, k) => { if (h.orden !== k) { h.orden = k; push({ tabla:'habito', action:'update', item: h }); } });
+  save(); render();
+}
+$('hUp').addEventListener('click', () => mover(-1));
+$('hDown').addEventListener('click', () => mover(1));
+
+// Sincronización: mismo script y clave que Finanzas (?app=habitos). Cola con reintentos.
+const SYNC_KEY = 'habitos-sync', QUEUE_KEY = 'habitos-cola';
+let sync = {}, queue = [], flushing = null, retryT;
+try { sync = JSON.parse(localStorage.getItem(SYNC_KEY)) || {}; } catch {}
+try { queue = JSON.parse(localStorage.getItem(QUEUE_KEY)) || []; } catch {}
+const saveQueue = () => { try { localStorage.setItem(QUEUE_KEY, JSON.stringify(queue)); } catch {} };
+const api = {
+  get: cfg => fetch(`${cfg.url}?app=habitos&token=${encodeURIComponent(cfg.token)}`).then(r => r.json()),
+  post: (cfg, body) => fetch(cfg.url, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+    body: JSON.stringify({ token: cfg.token, ...body }) }).then(r => r.json()),
+};
+function setStatus(st) {
+  const txt = { local:'Solo en este dispositivo', sync:'Sincronizando…', ok:'Sincronizado', err: queue.length ? `${queue.length} sin subir` : 'Sin conexión' };
+  $('syncBtn').dataset.s = st; $('syncTxt').textContent = txt[st]; $('syncBtn').title = txt[st];
+}
+function flush() {
+  flushing ||= (async () => {
+    while (queue.length) {
+      const r = await api.post(sync, queue[0]);
+      if (!r.ok) throw new Error(r.error);
+      queue.shift(); saveQueue();
+    }
+  })().finally(() => { flushing = null; });
+  return flushing;
+}
+function push(op) {
+  if (!sync.url) return;
+  queue.push(op); saveQueue(); setStatus('sync');
+  flush().then(() => setStatus('ok'), () => setStatus('err'));
+}
+async function pull() {
+  if (!sync.url) return setStatus('local');
+  setStatus('sync');
+  try {
+    await flush();
+    const r = await api.get(sync);
+    if (!r.ok) throw new Error(r.error);
+    if (!Array.isArray(r.habitos)) throw new Error('El script de Google es una versión vieja: publicá la nueva.');
+    if (!queue.length && (JSON.stringify(r.habitos) !== JSON.stringify(habitos) || JSON.stringify(r.registros) !== JSON.stringify(registros))) {
+      habitos = r.habitos; registros = r.registros; reindex(); save(); render();
+    }
+    setStatus('ok');
+  } catch (err) {
+    console.warn('Sincronización:', err); setStatus('err');
+    clearTimeout(retryT); retryT = setTimeout(pull, 30000);
+  }
+}
+$('syncBtn').addEventListener('click', () => {
+  // Si la app de Finanzas está en el mismo navegador, se ofrecen sus datos
+  let fin = {}; try { fin = JSON.parse(localStorage.getItem('finanzas-sync')) || {}; } catch {}
+  $('syncUrl').value = sync.url || fin.url || ''; $('syncToken').value = sync.token || fin.token || '';
+  $('syncMsg').textContent = ''; $('syncMsg').className = 'note';
+  $('syncOff').hidden = !sync.url;
+  $('syncDlg').showModal();
+});
+$('syncCancel').addEventListener('click', () => $('syncDlg').close());
+$('syncOff').addEventListener('click', () => {
+  sync = {}; queue = []; saveQueue();
+  try { localStorage.removeItem(SYNC_KEY); } catch {}
+  setStatus('local'); $('syncDlg').close();
+});
+$('syncForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const cfg = { url: $('syncUrl').value.trim(), token: $('syncToken').value.trim() }, msg = $('syncMsg');
+  msg.className = 'note'; msg.textContent = 'Probando conexión…';
+  try {
+    const r = await api.get(cfg);
+    if (!r.ok) throw new Error(r.error === 'token' ? 'La clave no coincide con el TOKEN del script.' : r.error);
+    if (!Array.isArray(r.habitos)) throw new Error('El script de Google es una versión vieja: publicá la nueva (ver GUIA.md).');
+    if (habitos.length) await api.post(cfg, { tabla:'habito', action:'bulkAdd', items: habitos });
+    if (registros.length) { msg.textContent = 'Subiendo tu historial…'; await api.post(cfg, { tabla:'registro', action:'bulkAdd', items: registros }); }
+    sync = cfg; queue = []; saveQueue();
+    try { localStorage.setItem(SYNC_KEY, JSON.stringify(sync)); } catch {}
+    msg.className = 'note ok'; msg.textContent = 'Conectado.';
+    await pull();
+    setTimeout(() => $('syncDlg').close(), 700);
+  } catch (err) {
+    msg.className = 'note err';
+    msg.textContent = err instanceof TypeError ? 'No se pudo conectar. Revisá la URL y que el acceso sea "Cualquier usuario".' : String(err.message || err);
+  }
+});
+// Al volver a la app: si cambió el día, se pasa a hoy; y se baja lo último
+let ultimoHoy = today();
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return;
+  if (today() !== ultimoHoy) { if (dia === ultimoHoy) dia = today(); ultimoHoy = today(); render(); }
+  pull();
+});
+addEventListener('online', pull);
+
+render();
+pull();
+</script>
+</body>
+</html>
