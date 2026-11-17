@@ -178,6 +178,35 @@
   .btn.danger { color:var(--danger); }
   .dlg-actions .left { margin-right:auto; }
 
+  /* Ahorros */
+  .metas { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px; }
+  .meta { position:relative; padding:14px; border-radius:12px; border:1px solid var(--line-2); background:var(--panel-2); cursor:pointer; transition:border-color .15s; }
+  .meta:hover { border-color:rgba(45,212,191,.35); }
+  .meta-top { display:flex; align-items:center; gap:10px; }
+  .meta-ico { flex:none; width:36px; height:36px; border-radius:10px; display:grid; place-items:center; font-size:19px; background:var(--bg); border:1px solid var(--line); }
+  .meta-top .txt { flex:1; min-width:0; }
+  .meta-top b { display:block; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .meta-top span { color:var(--muted); font-size:12px; }
+  .meta-amt { margin:12px 0 6px; font-size:20px; font-weight:600; letter-spacing:-.01em; font-variant-numeric:tabular-nums; }
+  .meta-amt small { font-size:13px; font-weight:400; color:var(--muted); }
+  .meta .track { height:8px; border-radius:99px; background:var(--bg); overflow:hidden; }
+  .meta .fill { height:100%; border-radius:99px; background:linear-gradient(90deg,#0f766e,var(--accent)); transform-origin:left; animation:grow .9s cubic-bezier(.2,.8,.2,1) both; }
+  .meta.done .fill { background:linear-gradient(90deg,#059669,var(--ok)); }
+  .meta-foot { display:flex; justify-content:space-between; gap:8px; margin-top:8px; font-size:12px; color:var(--muted); }
+  .meta-acts { display:flex; gap:8px; margin-top:12px; }
+  .meta-acts .btn { flex:1; justify-content:center; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; justify-content:center; }
+  .chip { padding:7px 12px; border-radius:99px; border:1px dashed var(--line-2); background:none; cursor:pointer; color:var(--text); }
+  .chip:hover { border-color:var(--accent); color:var(--accent); }
+  .hist { grid-column:1 / -1; list-style:none; margin:0; padding:0; max-height:220px; overflow:auto; border-top:1px solid var(--line); }
+  .hist li { display:flex; align-items:center; gap:10px; padding:8px 4px; border-bottom:1px solid var(--line); font-size:13px; }
+  .hist li span:first-child { color:var(--muted); width:46px; flex:none; }
+  .hist li .n { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tipo .seg button.on[data-v=deposito] { color:var(--ok); }
+  .tipo .seg button.on[data-v=retiro] { color:var(--amber); }
+  dialog label.check-row { flex-direction:row; align-items:center; gap:8px; color:var(--text); font-size:13px; }
+  dialog label.check-row input { width:auto; }
+
   /* Entrada escalonada */
   .rise { opacity:0; animation:rise .6s cubic-bezier(.2,.8,.2,1) forwards; animation-delay:calc(var(--i, 0) * 70ms); }
   @keyframes rise { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } }
@@ -232,6 +261,15 @@
     <p class="note err" id="fijAviso" hidden style="margin:0 0 10px">Para sincronizar los gastos fijos hay que publicar la versión nueva del script de Google. Mientras tanto quedan guardados solo en este dispositivo.</p>
     <div class="progress" id="fijProg"><span id="fijProgTxt"></span><div class="track"><div class="fill" id="fijProgBar"></div></div></div>
     <ul class="fijos" id="fijos"></ul>
+  </section>
+
+  <section class="panel rise" style="--i:5;margin-bottom:14px">
+    <div class="panel-head">
+      <div><h2>Ahorros</h2><div class="sub" id="ahoSub"></div></div>
+      <button class="btn sm" id="metaNew">+ Meta</button>
+    </div>
+    <p class="note err" id="ahoAviso" hidden style="margin:0 0 10px">Para sincronizar los ahorros hay que publicar la versión nueva del script de Google. Mientras tanto quedan guardados solo en este dispositivo.</p>
+    <div class="metas" id="metas"></div>
   </section>
 
   <section class="grid">
@@ -341,6 +379,44 @@
       <button type="button" class="btn left" id="bEdit">Editar fijo</button>
       <button type="button" class="btn" id="bSave">Guardar</button>
       <button type="submit" class="btn primary" id="bPay">Marcar pagado</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="metaDlg">
+  <form id="metaForm">
+    <h3 id="metaTitle">Nueva meta</h3>
+    <input type="hidden" id="mId">
+    <label>Ícono <input type="text" id="mIcono" maxlength="4" placeholder="🎯"></label>
+    <label>Nombre <input type="text" id="mNombre" required placeholder="Ej: Vacaciones"></label>
+    <label>Objetivo <input type="number" id="mMonto" required min="1" step="0.01" placeholder="0"></label>
+    <label>Para cuándo (opcional) <input type="date" id="mFecha"></label>
+    <ul class="hist" id="mHist" hidden></ul>
+    <div class="dlg-actions">
+      <button type="button" class="btn danger left" id="mDel">Eliminar</button>
+      <button type="button" class="btn" id="mCancel">Cancelar</button>
+      <button type="submit" class="btn primary">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="aporteDlg">
+  <form id="aporteForm">
+    <h3 id="aporteTitle"></h3>
+    <input type="hidden" id="aMeta">
+    <input type="hidden" id="aTipo" value="deposito">
+    <div class="tipo"><div class="seg" id="aTipoSeg"><button type="button" data-v="deposito" class="on">Depositar</button><button type="button" data-v="retiro">Retirar</button></div></div>
+    <label>Monto <input type="number" id="aMonto" required min="0.01" step="0.01" placeholder="0"></label>
+    <label>Fecha <input type="date" id="aFecha" required></label>
+    <label class="full">Nota (opcional) <input type="text" id="aNota" placeholder="Ej: Cobro Victoria lunes"></label>
+    <div class="full" id="aGastoBox" hidden style="grid-column:1/-1;display:grid;gap:8px">
+      <label class="check-row"><input type="checkbox" id="aGasto" checked> Registrar también como gasto (si la plata se usó para pagar algo)</label>
+      <label id="aCatBox">Categoría del gasto <select id="aCat"></select></label>
+    </div>
+    <p class="note" id="aInfo"></p>
+    <div class="dlg-actions">
+      <button type="button" class="btn" id="aCancel">Cancelar</button>
+      <button type="submit" class="btn primary" id="aSubmit">Depositar</button>
     </div>
   </form>
 </dialog>
@@ -483,10 +559,12 @@ function render() {
   if (pend.length) $('summary').innerHTML += ` · <strong>${pend.length}</strong> fijo${pend.length === 1 ? '' : 's'} por pagar` +
     (venc ? ` (<strong class="neg">${venc} vencido${venc === 1 ? '' : 's'}</strong>)` : '');
   renderFijos();
+  renderAhorros();
 
   countUp($('tIng'), c.ing); countUp($('tGas'), c.gas); countUp($('tBalMes'), c.bal); countUp($('tBal'), total);
   foot($('fIng'), c.ing, p.ing, prev); foot($('fGas'), c.gas, p.gas, prev, true); foot($('fBalMes'), c.bal, p.bal, prev);
-  $('fBal').textContent = `${items.length} movimiento${items.length === 1 ? '' : 's'} en total`;
+  const ahorrado = totalAhorrado();
+  $('fBal').textContent = `${items.length} movimiento${items.length === 1 ? '' : 's'} en total` + (ahorrado ? ` · ${compact(ahorrado)} ahorrado` : '');
   const k6 = monthSeq(6);
   spark($('sIng'), k6.map(k => get(k).ing), COLORS.ing);
   spark($('sGas'), k6.map(k => get(k).gas), COLORS.gas);
@@ -754,6 +832,147 @@ $('bolForm').addEventListener('submit', e => {
 });
 $('bEdit').addEventListener('click', () => { $('bolDlg').close(); openFijo(bolActual); });
 
+// Ahorros: metas con un objetivo y (opcional) una fecha. La plata que se deposita
+// sigue siendo parte del balance total; "disponible" = balance total − ahorrado.
+// Un retiro puede registrarse además como gasto (cuando la plata se usó para pagar algo).
+const METAS_KEY = 'finanzas-metas', APORTES_KEY = 'finanzas-aportes';
+const SUGERIDAS = [
+  { icono:'🏖️', nombre:'Vacaciones' }, { icono:'🛟', nombre:'Fondo de emergencia' },
+  { icono:'🧾', nombre:'Pagar deuda' }, { icono:'🚗', nombre:'Auto' }, { icono:'🏠', nombre:'Casa' },
+];
+let metas = [], aportes = [];
+try { metas = JSON.parse(localStorage.getItem(METAS_KEY)) || []; } catch { metas = []; }
+try { aportes = JSON.parse(localStorage.getItem(APORTES_KEY)) || []; } catch { aportes = []; }
+const saveAho = () => { try { localStorage.setItem(METAS_KEY, JSON.stringify(metas)); localStorage.setItem(APORTES_KEY, JSON.stringify(aportes)); } catch {} };
+const saldoMeta = id => aportes.filter(a => a.meta === id).reduce((s, a) => s + (a.tipo === 'retiro' ? -a.monto : a.monto), 0);
+const totalAhorrado = () => metas.reduce((s, m) => s + saldoMeta(m.id), 0);
+const ddmmyy = f => f.split('-').reverse().join('/').replace(/\/(\d{2})(\d{2})$/, '/$2');
+
+function renderAhorros() {
+  const total = totalAhorrado(), disp = items.reduce((s, i) => s + signed(i), 0) - total;
+  $('ahoSub').innerHTML = metas.length
+    ? `<strong style="color:var(--text)">${money(total)}</strong> ahorrado · ${money(disp)} disponible para gastar`
+    : 'Separá plata para tus objetivos';
+  const list = metas.map(m => ({ m, saldo: saldoMeta(m.id) }))
+    .sort((a, b) => ((a.saldo >= a.m.monto) - (b.saldo >= b.m.monto)) || (a.m.fecha || '9999').localeCompare(b.m.fecha || '9999'));
+  $('metas').innerHTML = list.map(({ m, saldo }, n) => {
+    const pct = Math.max(0, Math.min(100, saldo / m.monto * 100)), falta = m.monto - saldo, done = falta <= 0;
+    let right;
+    if (done) right = '¡Meta cumplida! 🎉';
+    else if (m.fecha) {
+      const d = diasHasta(m.fecha);
+      right = d < 0 ? `<span class="neg">Fecha pasada · faltan ${compact(falta)}</span>`
+        : `Faltan ${compact(falta)} · <strong style="color:var(--text)">${compact(Math.ceil(falta / Math.max(1, Math.ceil(d / 7))))}</strong>/semana`;
+    } else right = `Faltan ${compact(falta)}`;
+    return `<div class="meta${done ? ' done' : ''}" data-meta="${m.id}">
+      <div class="meta-top"><span class="meta-ico">${esc(m.icono || '🎯')}</span>
+        <span class="txt"><b>${esc(m.nombre)}</b><span>${m.fecha ? 'Para el ' + ddmmyy(m.fecha) : 'Sin fecha'}</span></span></div>
+      <div class="meta-amt">${money(saldo)} <small>de ${money(m.monto)}</small></div>
+      <div class="track"><div class="fill" style="width:${pct}%;animation-delay:${n * 60}ms"></div></div>
+      <div class="meta-foot"><span>${Math.floor(pct)}%</span><span>${right}</span></div>
+      <div class="meta-acts"><button class="btn sm primary" data-dep="${m.id}">+ Depositar</button><button class="btn sm" data-ret="${m.id}"${saldo > 0 ? '' : ' disabled'}>Retirar</button></div>
+    </div>`;
+  }).join('') || `<div class="empty" style="grid-column:1/-1">Todavía no tenés metas. Empezá con una:
+    <div class="chips">${SUGERIDAS.map((s, i) => `<button class="chip" data-sug="${i}">${s.icono} ${s.nombre}</button>`).join('')}</div></div>`;
+}
+
+$('metas').addEventListener('click', e => {
+  const sug = e.target.closest('[data-sug]');
+  if (sug) return openMeta(null, SUGERIDAS[sug.dataset.sug]);
+  const dep = e.target.closest('[data-dep]'), ret = e.target.closest('[data-ret]');
+  const id = dep ? dep.dataset.dep : ret ? ret.dataset.ret : e.target.closest('[data-meta]')?.dataset.meta;
+  const m = metas.find(x => x.id === id); if (!m) return;
+  if (dep) return openAporte(m, 'deposito');
+  if (ret) return openAporte(m, 'retiro');
+  openMeta(m);
+});
+
+// Diálogo de la meta (con el historial de depósitos y retiros)
+function renderHist(m) {
+  const list = aportes.filter(a => a.meta === m.id).sort((a, b) => b.fecha.localeCompare(a.fecha));
+  $('mHist').hidden = !list.length;
+  $('mHist').innerHTML = list.map(a => `<li><span>${ddmm(a.fecha)}</span><span class="n">${esc(a.nota || (a.tipo === 'retiro' ? 'Retiro' : 'Depósito'))}</span>
+    <span class="${a.tipo === 'retiro' ? 'neg' : 'pos'}">${a.tipo === 'retiro' ? '−' : '+'}${money(a.monto)}</span>
+    <button type="button" class="link del" data-del-aporte="${a.id}" aria-label="Borrar">✕</button></li>`).join('');
+}
+function openMeta(m, preset) {
+  $('metaForm').reset();
+  const v = m || preset || {};
+  $('mId').value = m ? m.id : '';
+  $('mIcono').value = v.icono || ''; $('mNombre').value = v.nombre || ''; $('mMonto').value = v.monto || ''; $('mFecha').value = v.fecha || '';
+  $('metaTitle').textContent = m ? 'Editar meta' : 'Nueva meta';
+  $('mDel').hidden = !m;
+  if (m) renderHist(m); else $('mHist').hidden = true;
+  $('metaDlg').showModal();
+  if (!m) (preset ? $('mMonto') : $('mNombre')).focus();
+}
+$('metaNew').addEventListener('click', () => openMeta());
+$('mCancel').addEventListener('click', () => $('metaDlg').close());
+$('metaForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const data = { nombre: $('mNombre').value.trim(), monto: parseFloat($('mMonto').value), fecha: $('mFecha').value, icono: $('mIcono').value.trim() || '🎯' };
+  let m = metas.find(x => x.id === $('mId').value);
+  if (m) Object.assign(m, data); else metas.push(m = { id: crypto.randomUUID(), ...data });
+  saveAho(); push({ tabla:'meta', action: $('mId').value ? 'update' : 'add', item: m });
+  $('metaDlg').close(); render();
+});
+$('mDel').addEventListener('click', () => {
+  const m = metas.find(x => x.id === $('mId').value); if (!m) return;
+  const suyos = aportes.filter(a => a.meta === m.id);
+  if (!confirm(`¿Eliminar la meta "${m.nombre}"?` + (suyos.length ? ` Se borran también sus ${suyos.length} depósitos/retiros (los gastos registrados quedan).` : ''))) return;
+  aportes = aportes.filter(a => a.meta !== m.id); metas = metas.filter(x => x !== m); saveAho();
+  suyos.forEach(a => push({ tabla:'aporte', action:'delete', id: a.id }));
+  push({ tabla:'meta', action:'delete', id: m.id });
+  $('metaDlg').close(); render();
+});
+$('mHist').addEventListener('click', e => {
+  const b = e.target.closest('[data-del-aporte]'); if (!b) return;
+  const a = aportes.find(x => x.id === b.dataset.delAporte); if (!a) return;
+  if (!confirm(`¿Borrar este ${a.tipo === 'retiro' ? 'retiro' : 'depósito'} de ${money(a.monto)}?`)) return;
+  aportes = aportes.filter(x => x !== a); saveAho(); push({ tabla:'aporte', action:'delete', id: a.id });
+  renderHist(metas.find(m => m.id === a.meta)); render();
+});
+
+// Diálogo de depósito / retiro
+$('aCat').innerHTML = CATS.gasto.map(c => `<option${c === 'Otros' ? ' selected' : ''}>${c}</option>`).join('');
+function setATipo(t) {
+  const m = metas.find(x => x.id === $('aMeta').value);
+  $('aTipo').value = t;
+  $('aTipoSeg').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === t));
+  $('aSubmit').textContent = t === 'retiro' ? 'Retirar' : 'Depositar';
+  $('aGastoBox').hidden = t !== 'retiro';
+  $('aInfo').className = 'note';
+  $('aInfo').textContent = m ? `Llevás ${money(saldoMeta(m.id))} de ${money(m.monto)}.` : '';
+}
+function openAporte(m, tipo) {
+  $('aporteForm').reset();
+  $('aMeta').value = m.id;
+  $('aporteTitle').textContent = `${m.icono || '🎯'} ${m.nombre}`;
+  $('aFecha').value = today();
+  $('aCatBox').hidden = false;
+  setATipo(tipo);
+  $('aporteDlg').showModal();
+  $('aMonto').focus();
+}
+$('aTipoSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setATipo(b.dataset.v); });
+$('aGasto').addEventListener('change', () => { $('aCatBox').hidden = !$('aGasto').checked; });
+$('aCancel').addEventListener('click', () => $('aporteDlg').close());
+$('aporteForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const m = metas.find(x => x.id === $('aMeta').value); if (!m) return;
+  const tipo = $('aTipo').value, monto = parseFloat($('aMonto').value), fecha = $('aFecha').value, nota = $('aNota').value.trim();
+  if (tipo === 'retiro' && monto > saldoMeta(m.id) + 0.001) {
+    $('aInfo').className = 'note err'; $('aInfo').textContent = `No podés retirar más de lo que tiene la meta (${money(saldoMeta(m.id))}).`; return;
+  }
+  const a = { id: crypto.randomUUID(), meta: m.id, tipo, fecha, monto, nota };
+  aportes.push(a); saveAho(); push({ tabla:'aporte', action:'add', item: a });
+  if (tipo === 'retiro' && $('aGasto').checked) {
+    const item = { id: crypto.randomUUID(), tipo:'gasto', fecha, descripcion: nota || m.nombre, categoria: $('aCat').value, monto, medio:'Transferencia' };
+    items.push(item); save(); push({ action:'add', item });
+  }
+  $('aporteDlg').close(); render();
+});
+
 // Sincronización con Google Sheets (Apps Script). Los cambios van a una cola
 // que se reintenta, así se puede cargar sin conexión.
 const SYNC_KEY = 'finanzas-sync', QUEUE_KEY = 'finanzas-cola';
@@ -784,10 +1003,15 @@ function flush() {
   return flushing;
 }
 let backendFijos = null; // null = todavía no se sabe; false = script viejo sin "Fijos"
+let backendAhorros = null; // ídem para "Metas" y "Aportes"
 function push(op) {
   if (!sync.url) return;
   if (op.tabla === 'fijo' && !backendFijos) { // se suben todos juntos cuando el script se actualice
     try { localStorage.setItem('finanzas-fijos-pend', '1'); } catch {}
+    return;
+  }
+  if ((op.tabla === 'meta' || op.tabla === 'aporte') && !backendAhorros) {
+    try { localStorage.setItem('finanzas-ahorros-pend', '1'); } catch {}
     return;
   }
   queue.push(op); saveQueue(); setStatus('sync');
@@ -814,6 +1038,21 @@ async function pull() {
         }
         try { localStorage.removeItem('finanzas-fijos-pend'); } catch {}
         if (JSON.stringify(r.fijos) !== JSON.stringify(fijos)) { fijos = r.fijos; saveFijos(); changed = true; }
+      }
+      backendAhorros = Array.isArray(r.metas);
+      $('ahoAviso').hidden = backendAhorros;
+      if (backendAhorros) {
+        let pend = false; try { pend = !!localStorage.getItem('finanzas-ahorros-pend'); } catch {}
+        if (pend) {
+          if (metas.length) await api.post(sync, { tabla:'meta', action:'bulkAdd', items: metas });
+          if (aportes.length) await api.post(sync, { tabla:'aporte', action:'bulkAdd', items: aportes });
+          r.metas = [...r.metas, ...metas.filter(m => !r.metas.some(x => x.id === m.id))];
+          r.aportes = [...r.aportes, ...aportes.filter(a => !r.aportes.some(x => x.id === a.id))];
+        }
+        try { localStorage.removeItem('finanzas-ahorros-pend'); } catch {}
+        if (JSON.stringify(r.metas) !== JSON.stringify(metas) || JSON.stringify(r.aportes) !== JSON.stringify(aportes)) {
+          metas = r.metas; aportes = r.aportes; saveAho(); changed = true;
+        }
       }
       if (changed) render();
     }
@@ -845,6 +1084,10 @@ $('syncForm').addEventListener('submit', async e => {
     // Sube lo que haya en este dispositivo (la planilla ignora los que ya tiene)
     if (items.length) { msg.textContent = `Subiendo ${items.length} movimientos…`; await api.post(cfg, { action:'bulkAdd', items }); }
     if (fijos.length && r.fijos) await api.post(cfg, { tabla:'fijo', action:'bulkAdd', items: fijos });
+    if (r.metas) {
+      if (metas.length) await api.post(cfg, { tabla:'meta', action:'bulkAdd', items: metas });
+      if (aportes.length) await api.post(cfg, { tabla:'aporte', action:'bulkAdd', items: aportes });
+    }
     sync = cfg; queue = []; saveQueue();
     try { localStorage.setItem(SYNC_KEY, JSON.stringify(sync)); } catch {}
     msg.className = 'note ok'; msg.textContent = 'Conectado.';
